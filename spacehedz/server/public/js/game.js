@@ -1,8 +1,13 @@
+
 var config = {
   type: Phaser.AUTO,
-  parent: 'phaser-example',
-  width: 800,
-  height: 600,
+    parent: 'game-div',
+    width: 800,
+    height: 600,
+    // I think I need dom.createContainer = true for video?
+    dom: {
+	createContainer: true
+    },
   scene: {
     preload: preload,
     create: create,
@@ -10,12 +15,37 @@ var config = {
   }
 };
 
+function webcamVideo(videoelement) {
+    var constraints = {
+        audio: false,
+        video: {width:320, height:240}
+    };
+
+
+    navigator.mediaDevices.getUserMedia(constraints).then(function(stream) {
+	console.log('Got stream'+ stream);
+	videoelement.srcObject = stream;
+/*	stream.getTracks().forEach(function(track) {
+	    console.log('Got track' + track);
+	    if (track.kind == 'video') {
+		self.video.srcObject = track.streams[0];
+	    }
+        });*/
+    }, function(err) {
+        alert('Could not acquire media: ' + err);
+    });
+}
+
+
+
 var game = new Phaser.Game(config);
 
 function preload() {
   this.load.image('ship', 'assets/spaceShips_001.png');
   this.load.image('otherPlayer', 'assets/enemyBlack5.png');
-  this.load.image('star', 'assets/star_gold.png');
+    this.load.image('star', 'assets/star_gold.png');
+     //this.load.video('wormhole', 'assets/video/wormhole.mp4', 'loadeddata', false, true);
+
 }
 
 function create() {
@@ -24,7 +54,22 @@ function create() {
   this.players = this.add.group();
 
   this.blueScoreText = this.add.text(16, 16, '', { fontSize: '32px', fill: '#0000FF' });
-  this.redScoreText = this.add.text(584, 16, '', { fontSize: '32px', fill: '#FF0000' });
+    this.redScoreText = this.add.text(584, 16, '', { fontSize: '32px', fill: '#FF0000' });
+
+    var video = document.createElement('video');
+    video.height = 240;
+    video.width = 240;
+    video.playsinline = true;
+    video.autoplay = true;
+    self.videoelement = this.add.dom(250, 300, video);
+    
+    if (true) {
+	webcamVideo(video);
+    } else {
+	startVideo(undefined, self.videoelement);
+    }
+
+
 
   this.socket.on('currentPlayers', function (players) {
     Object.keys(players).forEach(function (id) {
@@ -55,6 +100,11 @@ function create() {
           player.setRotation(players[id].rotation);
           player.setPosition(players[id].x, players[id].y);
         }
+
+	  if (players[id].playerId === self.socket.id) {
+	      self.videoelement.setRotation(players[id].rotation);
+	      self.videoelement.setPosition(players[id].x, players[id].y);
+	  }
       });
     });
   });

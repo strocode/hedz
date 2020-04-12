@@ -1,5 +1,6 @@
 const path = require('path');
 const jsdom = require('jsdom');
+const proxy = require('express-http-proxy')
 const express = require('express');
 const app = express();
 const server = require('http').Server(app);
@@ -10,6 +11,9 @@ const datauri = new Datauri();
 const { JSDOM } = jsdom;
 
 app.use(express.static(__dirname + '/public'));
+
+// send requrests for /conference to the conferencing server
+app.use('/conference', proxy('localhost:8080'));
 
 app.get('/', function (req, res) {
   res.sendFile(__dirname + '/index.html');
