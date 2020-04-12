@@ -58,15 +58,15 @@ function create() {
 
     var video = document.createElement('video');
     video.height = 240;
-    video.width = 240;
+    video.width = 320;
     video.playsinline = true;
     video.autoplay = true;
     self.videoelement = this.add.dom(250, 300, video);
     
-    if (true) {
+    if (false) {
 	webcamVideo(video);
     } else {
-	startVideo(undefined, self.videoelement);
+	startVideo(undefined, video);
     }
 
 
