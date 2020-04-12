@@ -57,6 +57,8 @@ class VideoTransformTrack(MediaStreamTrack):
             self.face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
             self.face_last = None
             self.face_out_sz = (640//4, 480//4)
+            self.nframes = 0
+            self.total_ticks = 0
 
     async def recv(self):
         frame = await self.track.recv()
@@ -117,7 +119,6 @@ class VideoTransformTrack(MediaStreamTrack):
             frameh = frame.height
             framew = frame.width
             frame = oldframe.to_ndarray(format='bgr24')
-            print('Frame shape', frame.shape)
             # Our operations on the frame come here
             scale = 2
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -127,11 +128,12 @@ class VideoTransformTrack(MediaStreamTrack):
             faces = self.face_cascade.detectMultiScale(gray, 1.1, 4)
             e2 = cv2.getTickCount()
             #total_ticks += (e2 - e1)
-            #nframes += 1
+            self.nframes += 1
+            self.total_ticks += (e2 - e1)
             
-            #if nframes % 100 == 0:
-            #    nsec = float(total_ticks)/cv2.getTickFrequency()
-            #    print("Face cascade takes for %d frames is %f frame/sec"%( nframes, float(nframes)/float(nsec)))
+            if nframes % 100 == 0:
+                nsec = float(total_ticks)/cv2.getTickFrequency()
+                print("Face cascade takes for %d frames is %f frame/sec"%( nframes, float(nframes)/float(nsec)))
 
             # Extract first face
             ow, oh = self.face_out_sz
@@ -143,8 +145,6 @@ class VideoTransformTrack(MediaStreamTrack):
                     face = self.face_last
             else:
                 face = faces[0] # pick first face
-                print(f'Successful face {faces[0]}')
-
 
 
             fx, fy, fw, fh = face
@@ -159,7 +159,6 @@ class VideoTransformTrack(MediaStreamTrack):
             ystart, yend = calc_bounds(fy, fh, oh)
             
             newimg = frame[ystart:yend, xstart:xend, :]
-            print(frame.shape, newimg.shape, xstart, xend, ystart, yend)
             # rebuild a VideoFrame, preserving timing information
             new_frame = VideoFrame.from_ndarray(newimg, format="bgr24")
             new_frame.pts = oldframe.pts
