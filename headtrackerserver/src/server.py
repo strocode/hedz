@@ -18,6 +18,8 @@ ROOT = os.path.dirname(__file__)
 logger = logging.getLogger("pc")
 pcs = set()
 
+NPLAYERS = 2
+
 def pos_filt(fx, fx_last, c=0.3, minmove=6):
     filt = fx_last + (fx - fx_last)*c
     ifilt = int(filt)
@@ -27,7 +29,7 @@ def pos_filt(fx, fx_last, c=0.3, minmove=6):
         out_fx = ifilt
         
 
-    print('Filter ', fx, fx_last, c, minmove, filt, ifilt, out_fx)
+#    print('Filter ', fx, fx_last, c, minmove, filt, ifilt, out_fx)
     return out_fx
 
 def calc_bounds(fx, fw, ow):
@@ -131,9 +133,9 @@ class VideoTransformTrack(MediaStreamTrack):
             self.nframes += 1
             self.total_ticks += (e2 - e1)
             
-            if nframes % 100 == 0:
-                nsec = float(total_ticks)/cv2.getTickFrequency()
-                print("Face cascade takes for %d frames is %f frame/sec"%( nframes, float(nframes)/float(nsec)))
+            if self.nframes % 100 == 0:
+                nsec = float(self.total_ticks)/cv2.getTickFrequency()
+                print("Face cascade takes for %d frames is %f frame/sec"%( self.nframes, float(self.nframes)/float(nsec)))
 
             # Extract first face
             ow, oh = self.face_out_sz
@@ -171,6 +173,92 @@ class VideoTransformTrack(MediaStreamTrack):
         else:
             return frame
 
+class FrameQueueTrack(MediaStreamTrack):
+    kind = 'video'
+    
+    def __init__(self, maxsize=0):
+        super().__init__()  # don't forget this!
+        self.queue = asyncio.Queue(maxsize)
+
+    async def recv(self):
+        frame = await self.queue.get()
+        self.queue.task_done()
+        print('Queue reutrning frame', frame)
+        return frame
+
+    async def put(self, frame):
+        await self.queue.put(frame)
+
+class TrackSplitter:
+    def __init__(self, media_stream):
+        self.media_stream = media_stream
+        self.output_tracks = []
+        self.task = asyncio.create_task(self.push_coro())
+
+    async def push_coro(self):
+        while True:
+            frame = await self.media_stream.recv()
+            print('Got frame', frame, 'pushing onto', len(self.output_tracks), 'tracks')
+            for ot in self.output_tracks:
+                await ot.put(frame)
+                print('Queuesize is ', ot.queue.qsize())
+
+    def add_output(self, track):
+        self.output_tracks.append(track)
+
+    def add_client(self, clientid, client):
+        fqueue = FrameQueueTrack()
+        self.add_output(fqueue)
+        client.add_output_track(fqueue)
+
+class Client:
+    def __init__(self, mgr, theirid):
+        self.__mgr = mgr
+        self.pc = RTCPeerConnection()
+        self.theirid = theirid
+        self.myid = uuid.uuid4()
+
+    def add_input_track(self, track):
+        self.__mgr.add_track(self.theirid, track)
+
+    def add_output_track(self, track):
+        self.pc.addTrack(track)
+
+class ConnectionManager:
+    def __init__(self, nclients=2):
+        self.clients = {} # Map from client ID to ClientId
+        self.their_clients = {} # mapt from theirid to Client
+        if nclients is not None:
+            for i in range(nclients):
+                self.__create_client(i)
+
+        self.__curr_client = 0
+
+    def __create_client(self, clientid):
+        c = Client(self, clientid)
+        self.clients[clientid] = c
+        return c
+
+    def add_client(self, theirid=None):
+        if theirid is None:
+            theirid = uuid.uuid4()
+            
+        c = self.clients[self.__curr_client]
+        self.__curr_client += 1
+        c.theirid = theirid
+        self.their_clients[c.theirid] = c
+        return c
+
+    def add_track(self, clientid, track):
+        pc = self.their_clients[clientid]
+        if track.kind == 'video':
+            input_track = VideoTransformTrack(track, transform='track')
+            input_splitter = TrackSplitter(input_track)
+            for cid, client_conn in self.clients.items():
+                input_splitter.add_client(cid, client_conn)
+
+conn_mgr = ConnectionManager()
+                
 
 async def index(request):
     content = open(os.path.join(ROOT, "index.html"), "r").read()
@@ -186,7 +274,9 @@ async def offer(request):
     params = await request.json()
     offer = RTCSessionDescription(sdp=params["sdp"], type=params["type"])
 
-    pc = RTCPeerConnection()
+    #pc = RTCPeerConnection()
+    client = conn_mgr.add_client() # TODO: get client ID from JSON cookie or something
+    pc = client.pc
     pc_id = "PeerConnection(%s)" % uuid.uuid4()
     pcs.add(pc)
 
@@ -224,10 +314,11 @@ async def offer(request):
             pc.addTrack(player.audio)
             recorder.addTrack(track)
         elif track.kind == "video":
-            local_video = VideoTransformTrack(
-                track, transform=params["video_transform"]
-            )
-            pc.addTrack(local_video)
+            #local_video = VideoTransformTrack(
+            #    track, transform=params["video_transform"]
+            #)
+            #pc.addTrack(local_video)
+            client.add_input_track(track)
 
         @track.on("ended")
         async def on_ended():
