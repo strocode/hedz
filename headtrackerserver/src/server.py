@@ -142,7 +142,7 @@ class VideoTransformTrack(MediaStreamTrack):
             if len(faces) == 0:
                 if self.face_last is None:
                     # Pick center of the image
-                    face = (framew - ow, framey - oh, ow, oh)
+                    face = (framew - ow, frameh - oh, ow, oh)
                 else:
                     face = self.face_last
             else:
@@ -183,25 +183,27 @@ class FrameQueueTrack(MediaStreamTrack):
     async def recv(self):
         frame = await self.queue.get()
         self.queue.task_done()
-        print('Queue reutrning frame', frame)
         return frame
 
     async def put(self, frame):
         await self.queue.put(frame)
 
 class TrackSplitter:
-    def __init__(self, media_stream):
-        self.media_stream = media_stream
+    def __init__(self, noutputs):
         self.output_tracks = []
+        self.client_tracks = []
+        
+
+    def set_input_track(self, track):
+        self.media_stream = track
         self.task = asyncio.create_task(self.push_coro())
 
     async def push_coro(self):
         while True:
             frame = await self.media_stream.recv()
-            print('Got frame', frame, 'pushing onto', len(self.output_tracks), 'tracks')
-            for ot in self.output_tracks:
-                await ot.put(frame)
-                print('Queuesize is ', ot.queue.qsize())
+            for client, ot in self.client_tracks:
+                if client.connected:
+                    await ot.put(frame)
 
     def add_output(self, track):
         self.output_tracks.append(track)
@@ -210,6 +212,8 @@ class TrackSplitter:
         fqueue = FrameQueueTrack()
         self.add_output(fqueue)
         client.add_output_track(fqueue)
+        self.client_tracks.append((client, fqueue))
+
 
 class Client:
     def __init__(self, mgr, theirid):
@@ -217,27 +221,37 @@ class Client:
         self.pc = RTCPeerConnection()
         self.theirid = theirid
         self.myid = uuid.uuid4()
+        self.__connected = False
 
     def add_input_track(self, track):
-        self.__mgr.add_track(self.theirid, track)
+        self.__mgr.add_track(self.myid, track)
+        self.__connected = True
 
     def add_output_track(self, track):
+        track.client = self
         self.pc.addTrack(track)
+        print('Client ', self.myid, 'has output track', track)
 
 class ConnectionManager:
     def __init__(self, nclients=2):
         self.clients = {} # Map from client ID to ClientId
-        self.their_clients = {} # mapt from theirid to Client
-        if nclients is not None:
-            for i in range(nclients):
-                self.__create_client(i)
-
+        self.their_clients = {} # mapped from theirid to Client
+        self.splitters = {} # map from clientid to TrackSplitter
+        self.clients = {i:Client(self, i) for i in range(nclients)}
+        self.nclients = nclients
         self.__curr_client = 0
 
-    def __create_client(self, clientid):
-        c = Client(self, clientid)
-        self.clients[clientid] = c
-        return c
+        for clientid, client in self.clients.items():
+            self.__add_output_tracks(client)
+
+    def __add_output_tracks(self, client):
+        input_splitter = TrackSplitter(self.nclients)
+        self.splitters[client.myid] = input_splitter
+        for clientid, client_conn in self.clients.items():
+            input_splitter.add_client(clientid, client_conn)
+            break
+
+        return client
 
     def add_client(self, theirid=None):
         if theirid is None:
@@ -247,15 +261,14 @@ class ConnectionManager:
         self.__curr_client += 1
         c.theirid = theirid
         self.their_clients[c.theirid] = c
+        c.connected = True
         return c
 
     def add_track(self, clientid, track):
-        pc = self.their_clients[clientid]
         if track.kind == 'video':
             input_track = VideoTransformTrack(track, transform='track')
-            input_splitter = TrackSplitter(input_track)
-            for cid, client_conn in self.clients.items():
-                input_splitter.add_client(cid, client_conn)
+            splitter = self.splitters[clientid]
+            splitter.set_input_track(input_track)
 
 conn_mgr = ConnectionManager()
                 
@@ -270,12 +283,20 @@ async def javascript(request):
     return web.Response(content_type="application/javascript", text=content)
 
 
+
 async def offer(request):
+    
     params = await request.json()
+    print('------ SDP -----')
+    print(params['sdp'])
+    print('------ TYPE ----')
+    print(params['type'])
+    print('---- END TYPE ---')
     offer = RTCSessionDescription(sdp=params["sdp"], type=params["type"])
 
     #pc = RTCPeerConnection()
-    client = conn_mgr.add_client() # TODO: get client ID from JSON cookie or something
+    #client = conn_mgr.add_client() # TODO: get client ID from JSON cookie or something
+    client = Client(conn_mgr, uuid.uuid4())
     pc = client.pc
     pc_id = "PeerConnection(%s)" % uuid.uuid4()
     pcs.add(pc)
@@ -314,11 +335,17 @@ async def offer(request):
             pc.addTrack(player.audio)
             recorder.addTrack(track)
         elif track.kind == "video":
-            #local_video = VideoTransformTrack(
-            #    track, transform=params["video_transform"]
-            #)
-            #pc.addTrack(local_video)
-            client.add_input_track(track)
+            local_video = VideoTransformTrack(
+                track, transform=params["video_transform"]
+            )
+            pc.addTrack(local_video)
+
+            local_video2 = VideoTransformTrack(
+                track, transform=params["video_transform"]
+            )
+            #pc.addTrack(local_video2)
+            
+            #client.add_input_track(track)
 
         @track.on("ended")
         async def on_ended():
@@ -331,6 +358,9 @@ async def offer(request):
 
     # send answer
     answer = await pc.createAnswer()
+
+    print('Answer is', str(answer.sdp).replace('\r\n','\n'))
+    print(dir(answer))
     await pc.setLocalDescription(answer)
 
     return web.Response(
@@ -378,3 +408,5 @@ if __name__ == "__main__":
     app.router.add_get("/client.js", javascript)
     app.router.add_post("/offer", offer)
     web.run_app(app, access_log=None, port=args.port, ssl_context=ssl_context)
+
+    

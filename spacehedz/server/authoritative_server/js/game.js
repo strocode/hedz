@@ -56,6 +56,7 @@ function create() {
       x: Math.floor(Math.random() * 700) + 50,
       y: Math.floor(Math.random() * 500) + 50,
       playerId: socket.id,
+      //playerSocket:socket,
       team: (Math.floor(Math.random() * 2) == 0) ? 'red' : 'blue',
       input: {
         left: false,
@@ -83,11 +84,21 @@ function create() {
       // emit a message to all players to remove this player
       io.emit('disconnect', socket.id);
     });
-
     // when a player moves, update the player data
     socket.on('playerInput', function (inputData) {
       handlePlayerInput(self, socket.id, inputData);
     });
+
+    // send webrtc chat data to the requested player
+      socket.on('webrtc', function(webrtcdata) {
+	  console.log('Got webrtc' + JSON.stringify(webrtcdata));
+	var playerId = webrtcdata.playerId;
+	socket.broadcast.to(playerId).emit('webrtc', webrtcdata);
+    });
+
+      
+
+
   });
 }
 

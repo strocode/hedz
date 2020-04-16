@@ -175,6 +175,9 @@ function startVideo(audio_target, video_target) {
             stream.getTracks().forEach(function(track) {
                 pc.addTrack(track, stream);
             });
+
+	    // add another track for fun
+	    
             return negotiate();
         }, function(err) {
             alert('Could not acquire media: ' + err);

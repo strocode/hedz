@@ -15,30 +15,12 @@ var config = {
   }
 };
 
-function webcamVideo(videoelement) {
-    var constraints = {
-        audio: false,
-        video: {width:320, height:240}
-    };
-
-
-    navigator.mediaDevices.getUserMedia(constraints).then(function(stream) {
-	console.log('Got stream'+ stream);
-	videoelement.srcObject = stream;
-/*	stream.getTracks().forEach(function(track) {
-	    console.log('Got track' + track);
-	    if (track.kind == 'video') {
-		self.video.srcObject = track.streams[0];
-	    }
-        });*/
-    }, function(err) {
-        alert('Could not acquire media: ' + err);
-    });
-}
-
-
-
 var game = new Phaser.Game(config);
+var pc = createMyPeerConnection();
+var webcam_stream = null;
+var screen_stream = null;
+
+
 
 function preload() {
   this.load.image('ship', 'assets/spaceShips_001.png');
@@ -54,7 +36,7 @@ function create() {
   this.players = this.add.group();
 
   this.blueScoreText = this.add.text(16, 16, '', { fontSize: '32px', fill: '#0000FF' });
-    this.redScoreText = this.add.text(584, 16, '', { fontSize: '32px', fill: '#FF0000' });
+  this.redScoreText = this.add.text(584, 16, '', { fontSize: '32px', fill: '#FF0000' });
 
     var video = document.createElement('video');
     video.height = 240;
@@ -62,13 +44,101 @@ function create() {
     video.playsinline = true;
     video.autoplay = true;
     self.videoelement = this.add.dom(250, 300, video);
+    self.chatPlayer = null;
     
-    if (false) {
+    if (true) {
 	webcamVideo(video);
+	//screenVideo();
     } else {
-	startVideo(undefined, video);
+	//startVideo(undefined, video);
     }
 
+    document.getElementById('webcam-button').addEventListener('click', function() {
+	webcam_stream.getTracks().forEach(function(track) {
+            pc.addTrack(track, webcam_stream);
+        });
+    });
+
+    document.getElementById('screen-button').addEventListener('click', function() {
+	var constraints = {};
+	navigator.mediaDevices.getDisplayMedia(constraints).then(function(stream) {
+	    addVideo(stream);
+	    screen_stream = stream;
+	    screen_stream.getTracks().forEach(function(track) {
+            pc.addTrack(track, screen_stream);
+        });
+	}, function(err) {
+	    alert('Couldnt open screen' + err);
+	});
+
+    });
+
+
+    pc.addEventListener('icecandidate', function(event) {
+	if (self.chatPlayer !== null) {
+	    if (event.candidate) {
+		self.socket.emit('webrtc', {
+		    name:self.socket.id,
+		    playerId:self.chatPlayer,
+		    type:'new-ice-candidate',
+		    candidate:event.candidate
+		});
+	    } else {
+		console.log('All candidates have been sent!');
+	    }
+	}
+
+    });
+
+    pc.addEventListener('negotiationneeded', function(evt) {
+	pc.createOffer().then(function(offer) {
+	    return pc.setLocalDescription(offer);
+	}).then(function() {
+	    if (self.chatPlayer !== null) {
+		self.socket.emit('webrtc', {
+		    name:self.socket.id,
+		    playerId:self.chatPlayer,
+		    type:'video-offer',
+		    sdp:pc.localDescription});
+	    }
+	}).catch(function(e) {
+	    alert(e);
+	});
+    });
+    
+    pc.addEventListener('removetrack', function(evt) {
+	console.log('Removetrack called');
+    });
+
+    // connect audio / video
+    pc.addEventListener('track', function(evt) {
+        if (evt.track.kind == 'video') {
+	    addVideo(evt.streams[0]);
+	} else if (evt.track.kind == 'audio' && audio_target !== undefined) {
+            //audio_target.srcObject = evt.streams[0];
+	}
+    });
+
+    this.socket.on('webrtc', function(webrtcdata) {
+	console.log('Got webrtc type' + webrtcdata.type);
+	switch(webrtcdata.type) {
+	case 'video-offer':
+	    handleVideoOffer(self, webrtcdata);
+	    break;
+
+	case 'video-answer':
+	    handleVideoAnswer(self, webrtcdata);
+	    break;
+
+	case 'new-ice-candidate':
+	    handleNewIceCandidate(self, webrtcdata);
+	    break;
+
+	default:
+	    console.log('Unknown type' + webrtcdata.type);
+	}
+    });
+						     
 
 
   this.socket.on('currentPlayers', function (players) {
@@ -122,6 +192,10 @@ function create() {
     }
   });
 
+    this.socket.on('webrtc', function (webrctdata) {
+	
+    });
+
   this.cursors = this.input.keyboard.createCursorKeys();
   this.leftKeyPressed = false;
   this.rightKeyPressed = false;
@@ -158,5 +232,114 @@ function displayPlayers(self, playerInfo, sprite) {
   if (playerInfo.team === 'blue') player.setTint(0x0000ff);
   else player.setTint(0xff0000);
   player.playerId = playerInfo.playerId;
-  self.players.add(player);
+    self.players.add(player);
+    if (player.playerId !== self.socket.id) {
+	self.chatPlayer = player.playerId;
+	console.log('Set chat player to ' + self.chatPlayer);
+    }
 }
+
+function handleVideoOffer(self, webrtcdata) {
+    
+    pc.setRemoteDescription(webrtcdata.sdp).then(function() {
+	return pc.createAnswer();
+    }).then(function(answer) {
+	return pc.setLocalDescription(answer);
+    }).then(function() {
+	var msg = {
+	    name:webrtcdata.playerId,
+	    playerId:webrtcdata.name,
+	    type:'video-answer',
+	    sdp:pc.localDescription
+	};
+	console.log('Sending video answer'+JSON.stringify(msg));
+	self.socket.emit('webrtc', msg);
+    });
+}
+
+function handleVideoAnswer(self, webrtcdata) {
+    pc.setRemoteDescription(webrtcdata.sdp).then(function() {
+	console.log('got video answer!');
+    });
+
+    
+}
+
+function handleNewIceCandidate(self, webrtcdata) {
+    pc.addIceCandidate(webrtcdata.candidate).then(function() {
+	console.log('Ice candidate added sucessfully!');
+    });
+}
+
+
+function webcamVideo(videoelement) {
+    var constraints = {
+        audio: false,
+        video: {width:320, height:240}
+    };
+
+
+    navigator.mediaDevices.getUserMedia(constraints).then(function(stream) {
+	console.log('Got stream'+ stream);
+	//videoelement.srcObject = stream;
+	addVideo(stream);
+	webcam_stream = stream;
+    }, function(err) {
+        alert('Could not acquire media: ' + err);
+    });
+}
+
+function screenVideo() {
+    var constraints = {};
+    navigator.mediaDevices.getDisplayMedia(constraints).then(function(stream) {
+	addVideo(stream);
+	screen_stream = stream;
+    }, function(err) {
+	alert('Couldnt open screen' + err);
+    });
+}
+
+
+function addVideo(stream) {
+    var video_div = document.getElementById('videos');
+    var v = document.createElement('video');
+    v.height = '240';
+    v.width = '320';
+    v.autoplay = 'true';
+    v.playsinline = 'true';
+    video_div.appendChild(v)
+    v.srcObject = stream;
+    return v;
+}
+
+function createMyPeerConnection() {
+    var config = {
+        sdpSemantics: 'unified-plan'
+    };
+
+    if (document.getElementById('use-stun').checked) {
+        config.iceServers = [{urls: ['stun:stun.l.google.com:19302']}];
+    }
+
+    pc = new RTCPeerConnection(config);
+
+    // register some listeners to help debugging
+    pc.addEventListener('icegatheringstatechange', function() {
+        iceGatheringLog.textContent += ' -> ' + pc.iceGatheringState;
+    }, false);
+    iceGatheringLog.textContent = pc.iceGatheringState;
+
+    pc.addEventListener('iceconnectionstatechange', function() {
+        iceConnectionLog.textContent += ' -> ' + pc.iceConnectionState;
+    }, false);
+    iceConnectionLog.textContent = pc.iceConnectionState;
+
+    pc.addEventListener('signalingstatechange', function() {
+        signalingLog.textContent += ' -> ' + pc.signalingState;
+    }, false);
+    signalingLog.textContent = pc.signalingState;
+
+
+    return pc;
+}
+
