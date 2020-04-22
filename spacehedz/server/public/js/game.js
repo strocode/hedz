@@ -20,6 +20,19 @@ var pc = createMyPeerConnection();
 var webcam_stream = null;
 var screen_stream = null;
 
+//
+Promise.all([
+    faceapi.net.tinyFaceDetector.loadFromUri('/models'),
+    faceapi.net.faceLandmark68Net.loadFromUri('/models'),
+    faceapi.net.faceRecognitionNet.loadFromUri('/models'),
+    faceapi.net.faceExpressionNet.loadFromUri('/models'),
+]).then(startVideo);
+
+video.addEventListener('play', () => {
+    const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceExpressions()
+}, 100);
+console.log(detections);
+{);
 
 
 function preload() {
@@ -275,7 +288,7 @@ function handleNewIceCandidate(self, webrtcdata) {
 function webcamVideo(videoelement) {
     var constraints = {
         audio: false,
-        video: {width:320, height:240}
+        video: {width:352, height:288}
     };
 
 
@@ -299,6 +312,7 @@ function screenVideo() {
     });
 }
 
+// Use https://webrtchacks.github.io/WebRTC-Camera-Resolution/
 
 function addVideo(stream) {
     var video_div = document.getElementById('videos');
