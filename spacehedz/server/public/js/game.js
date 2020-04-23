@@ -53,6 +53,7 @@ function create() {
   this.blueScoreText = this.add.text(16, 16, '', { fontSize: '32px', fill: '#0000FF' });
   this.redScoreText = this.add.text(584, 16, '', { fontSize: '32px', fill: '#FF0000' });
 
+/*
   var video = document.createElement('canvas');
     video.height = 240;
     video.width = 320;
@@ -60,13 +61,11 @@ function create() {
     video.autoplay = true;
     self.videoelement = this.add.dom(250, 300, video);
     self.chatPlayer = null;
+    */
 
-    if (true) {
-	webcamVideo(video);
-	//screenVideo();
-    } else {
-	//startVideo(undefined, video);
-    }
+    var myHeadVideoCanvas = this.textures.createCanvas('myheadvideo', 256, 256);
+
+	  webcamVideo(myHeadVideoCanvas);
 
     document.getElementById('webcam-button').addEventListener('click', function() {
 	webcam_stream.getTracks().forEach(function(track) {
@@ -159,7 +158,8 @@ function create() {
   this.socket.on('currentPlayers', function (players) {
     Object.keys(players).forEach(function (id) {
       if (players[id].playerId === self.socket.id) {
-        displayPlayers(self, players[id], 'ship');
+        // use 'ship' for a fixed image or 'myheadvideo' for a cutout of your head
+        displayPlayers(self, players[id], 'myheadvideo');
       } else {
         displayPlayers(self, players[id], 'otherPlayer');
       }
@@ -186,10 +186,10 @@ function create() {
           player.setPosition(players[id].x, players[id].y);
         }
 
-	  if (players[id].playerId === self.socket.id) {
-	      self.videoelement.setRotation(players[id].rotation);
-	      self.videoelement.setPosition(players[id].x, players[id].y);
-	  }
+	  // if (players[id].playerId === self.socket.id) {
+	  //     self.videoelement.setRotation(players[id].rotation);
+	  //     self.videoelement.setPosition(players[id].x, players[id].y);
+	  // }
       });
     });
   });
@@ -240,8 +240,11 @@ function update() {
 
 function displayPlayers(self, playerInfo, sprite) {
   const player = self.add.sprite(playerInfo.x, playerInfo.y, sprite).setOrigin(0.5, 0.5).setDisplaySize(53, 40);
-  if (playerInfo.team === 'blue') player.setTint(0x0000ff);
-  else player.setTint(0xff0000);
+  if (playerInfo.team === 'blue') {
+    //player.setTint(0x0000ff);
+  } else {
+    //player.setTint(0xff0000);
+  }
   player.playerId = playerInfo.playerId;
     self.players.add(player);
     if (player.playerId !== self.socket.id) {
@@ -283,7 +286,7 @@ function handleNewIceCandidate(self, webrtcdata) {
 }
 
 
-function webcamVideo(videoelement) {
+function webcamVideo(headCanvas) {
     var constraints = {
         audio: false,
         video: {width:352, height:288}
@@ -297,7 +300,7 @@ function webcamVideo(videoelement) {
 	video = addVideo(stream);
   // set global variable
   webcam_video = video;
-  cutout_video = videoelement;
+  cutout_video = headCanvas;
   video.addEventListener('canplay', () => {
     const canvas = faceapi.createCanvasFromMedia(video)
     document.body.append(canvas)
@@ -395,6 +398,9 @@ function copyCutout() {
     //var video = document.getElementById('video');
     // rescaledDetections has weird offsets - don't understand why but
     // Just don't use them and eeeevrything will be fiiiiine
+
+    var cutcanvas = cutout_video;
+
     if (detections.length == 1) {
 	var det = detections[0];
 	var box = det.detection.box;
@@ -428,34 +434,30 @@ function copyCutout() {
 	var dw = detw;
 	var dh = deth;
 
-	dw = 256;
-	dh = dw;
+	dw = cutout_video.width;
+	dh = cutout_video.height;
 	sh = detw;
 	sw = deth;
 	sx = detx;
 	sy = dety;
 
-
-	cutcanvas.width = dw;
-	cutcanvas.height = dh;
-
 	// Destination x and y = 0,0 for top left of the box
 	var dx = 0;
 	var dy = 0;
 	last_rect = {sx:sx, sy:sy, sw:sw, sh:sh, dx:dx, dy:dy, dw:dw, dh:dh};
-    }
+}
     if (last_rect.sx != undefined) {
-      var cutcanvas = cutout_video;
-      var ctx = cutcanvas.getContext('2d');
-	ctx.drawImage(webcam_video,
-		  last_rect.sx,
-		  last_rect.sy,
-		  last_rect.sw,
-		  last_rect.sh,
-		  last_rect.dx,
-		  last_rect.dy,
-		  last_rect.dw,
-		  last_rect.dh);
+      var ctx = cutcanvas.getContext();
+	    ctx.drawImage(webcam_video,
+  		  last_rect.sx,
+  		  last_rect.sy,
+  		  last_rect.sw,
+  		  last_rect.sh,
+  		  last_rect.dx,
+  		  last_rect.dy,
+  		  last_rect.dw,
+  		  last_rect.dh);
+      cutcanvas.update();
     }
     window.requestAnimationFrame(copyCutout);
 }
