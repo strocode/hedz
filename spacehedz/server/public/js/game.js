@@ -15,32 +15,34 @@ var config = {
   }
 };
 
-var game = new Phaser.Game(config);
-var pc = createMyPeerConnection();
+var game;
+var pc;
 var webcam_stream = null;
 var screen_stream = null;
+var resizedDetections = [];
+var detections = [];
+var last_rect = {};
+var webcam_video;
+var cutout_video;
 
 //
 Promise.all([
-    faceapi.net.tinyFaceDetector.loadFromUri('/models'),
-    faceapi.net.faceLandmark68Net.loadFromUri('/models'),
-    faceapi.net.faceRecognitionNet.loadFromUri('/models'),
-    faceapi.net.faceExpressionNet.loadFromUri('/models'),
-]).then(startVideo);
+  faceapi.nets.tinyFaceDetector.loadFromUri('/models'),
+  faceapi.nets.faceLandmark68Net.loadFromUri('/models'),
+  faceapi.nets.faceRecognitionNet.loadFromUri('/models'),
+  faceapi.nets.faceExpressionNet.loadFromUri('/models')
+]).then(startGame);
 
-video.addEventListener('play', () => {
-    const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceExpressions()
-}, 100);
-console.log(detections);
-{);
+function startGame() {
+    game = new Phaser.Game(config);
+    pc = createMyPeerConnection();
+}
 
 
 function preload() {
   this.load.image('ship', 'assets/spaceShips_001.png');
   this.load.image('otherPlayer', 'assets/enemyBlack5.png');
-    this.load.image('star', 'assets/star_gold.png');
-     //this.load.video('wormhole', 'assets/video/wormhole.mp4', 'loadeddata', false, true);
-
+  this.load.image('star', 'assets/star_gold.png');
 }
 
 function create() {
@@ -51,14 +53,14 @@ function create() {
   this.blueScoreText = this.add.text(16, 16, '', { fontSize: '32px', fill: '#0000FF' });
   this.redScoreText = this.add.text(584, 16, '', { fontSize: '32px', fill: '#FF0000' });
 
-    var video = document.createElement('video');
+  var video = document.createElement('canvas');
     video.height = 240;
     video.width = 320;
     video.playsinline = true;
     video.autoplay = true;
     self.videoelement = this.add.dom(250, 300, video);
     self.chatPlayer = null;
-    
+
     if (true) {
 	webcamVideo(video);
 	//screenVideo();
@@ -118,7 +120,7 @@ function create() {
 	    alert(e);
 	});
     });
-    
+
     pc.addEventListener('removetrack', function(evt) {
 	console.log('Removetrack called');
     });
@@ -151,7 +153,7 @@ function create() {
 	    console.log('Unknown type' + webrtcdata.type);
 	}
     });
-						     
+
 
 
   this.socket.on('currentPlayers', function (players) {
@@ -205,10 +207,6 @@ function create() {
     }
   });
 
-    this.socket.on('webrtc', function (webrctdata) {
-	
-    });
-
   this.cursors = this.input.keyboard.createCursorKeys();
   this.leftKeyPressed = false;
   this.rightKeyPressed = false;
@@ -253,7 +251,7 @@ function displayPlayers(self, playerInfo, sprite) {
 }
 
 function handleVideoOffer(self, webrtcdata) {
-    
+
     pc.setRemoteDescription(webrtcdata.sdp).then(function() {
 	return pc.createAnswer();
     }).then(function(answer) {
@@ -275,7 +273,7 @@ function handleVideoAnswer(self, webrtcdata) {
 	console.log('got video answer!');
     });
 
-    
+
 }
 
 function handleNewIceCandidate(self, webrtcdata) {
@@ -292,11 +290,44 @@ function webcamVideo(videoelement) {
     };
 
 
-    navigator.mediaDevices.getUserMedia(constraints).then(function(stream) {
+  navigator.mediaDevices.getUserMedia(constraints).then(function(stream) {
 	console.log('Got stream'+ stream);
 	//videoelement.srcObject = stream;
-	addVideo(stream);
-	webcam_stream = stream;
+  webcam_stream = stream;
+	video = addVideo(stream);
+  // set global variable
+  webcam_video = video;
+  cutout_video = videoelement;
+  video.addEventListener('canplay', () => {
+    const canvas = faceapi.createCanvasFromMedia(video)
+    document.body.append(canvas)
+    const displaySize = { width: video.width, height: video.height }
+    faceapi.matchDimensions(canvas, displaySize)
+    setInterval(async () => {
+        detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceExpressions()
+        //const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions());
+
+        resizedDetections = faceapi.resizeResults(detections, displaySize)
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height)
+        faceapi.draw.drawDetections(canvas, resizedDetections)
+        faceapi.draw.drawFaceLandmarks(canvas, resizedDetections)
+        faceapi.draw.drawFaceExpressions(canvas, resizedDetections)
+
+        if (resizedDetections.length >= 1) {
+  	  var det = resizedDetections[0];
+  	  var box = det.detection.box;
+  	  ctx.strokeStyle = 'green';
+  	  ctx.strokeRect(box.x, box.y, box.width, box.height);
+    }
+  }, 100)
+
+  window.requestAnimationFrame(copyCutout);
+
+}
+
+);
+
     }, function(err) {
         alert('Could not acquire media: ' + err);
     });
@@ -323,6 +354,7 @@ function addVideo(stream) {
     v.playsinline = 'true';
     video_div.appendChild(v)
     v.srcObject = stream;
+    v.play();
     return v;
 }
 
@@ -357,3 +389,73 @@ function createMyPeerConnection() {
     return pc;
 }
 
+function copyCutout() {
+    //var cutcanvas = document.getElementById('cutout');
+
+    //var video = document.getElementById('video');
+    // rescaledDetections has weird offsets - don't understand why but
+    // Just don't use them and eeeevrything will be fiiiiine
+    if (detections.length == 1) {
+	var det = detections[0];
+	var box = det.detection.box;
+
+	var detw = box.width;
+	var deth = box.height;
+	var detx = box.x;
+	var dety = box.y;
+
+	// middle of the box
+	var mx = detx + detw/2;
+	var my = dety + deth/2;
+
+	var extra_height = 0.0;
+	var extra_height_pix = extra_height*deth;
+	deth = deth + extra_height_pix;
+	dety = dety - extra_height_pix;
+
+
+	// source width and height
+	var sw = detw;
+	var sh = deth;
+
+	// Possition of the larger box
+	//var sx = mx - w/2;
+	//var sy = my - h/2;
+
+	var sx = detx;
+	var sy = dety;
+
+	var dw = detw;
+	var dh = deth;
+
+	dw = 256;
+	dh = dw;
+	sh = detw;
+	sw = deth;
+	sx = detx;
+	sy = dety;
+
+
+	cutcanvas.width = dw;
+	cutcanvas.height = dh;
+
+	// Destination x and y = 0,0 for top left of the box
+	var dx = 0;
+	var dy = 0;
+	last_rect = {sx:sx, sy:sy, sw:sw, sh:sh, dx:dx, dy:dy, dw:dw, dh:dh};
+    }
+    if (last_rect.sx != undefined) {
+      var cutcanvas = cutout_video;
+      var ctx = cutcanvas.getContext('2d');
+	ctx.drawImage(webcam_video,
+		  last_rect.sx,
+		  last_rect.sy,
+		  last_rect.sw,
+		  last_rect.sh,
+		  last_rect.dx,
+		  last_rect.dy,
+		  last_rect.dw,
+		  last_rect.dh);
+    }
+    window.requestAnimationFrame(copyCutout);
+}

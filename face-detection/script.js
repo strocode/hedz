@@ -14,12 +14,12 @@ function startVideo() {
 	    height: 480
 	}
     };
-	    
+
     navigator.mediaDevices.getUserMedia(constraints)
 	.then(function(stream) {
 	  video.srcObject = stream;
 	});
-  
+
 }
 
 var resizedDetections = [];
@@ -33,7 +33,7 @@ video.addEventListener('play', () => {
   setInterval(async () => {
       detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceExpressions()
       //const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions());
-      
+
       resizedDetections = faceapi.resizeResults(detections, displaySize)
       const ctx = canvas.getContext('2d');
       ctx.clearRect(0, 0, canvas.width, canvas.height)
@@ -47,9 +47,6 @@ video.addEventListener('play', () => {
 	  ctx.strokeStyle = 'green';
 	  ctx.strokeRect(box.x, box.y, box.width, box.height);
       }
-      
-
-      
   }, 100)
 })
 
@@ -69,7 +66,7 @@ function copyCutout() {
 	var deth = box.height;
 	var detx = box.x;
 	var dety = box.y;
-	
+
 	// middle of the box
 	var mx = detx + detw/2;
 	var my = dety + deth/2;
@@ -78,7 +75,7 @@ function copyCutout() {
 	var extra_height_pix = extra_height*deth;
 	deth = deth + extra_height_pix;
 	dety = dety - extra_height_pix;
-	
+
 
 	// source width and height
 	var sw = detw;
@@ -125,4 +122,3 @@ function copyCutout() {
 }
 
 window.requestAnimationFrame(copyCutout);
-
