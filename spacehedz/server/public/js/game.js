@@ -48,20 +48,22 @@ function preload() {
 function create() {
   var self = this;
   this.socket = io();
+  this.playerId = this.socket.id;
   this.players = this.add.group();
 
   this.blueScoreText = this.add.text(16, 16, '', { fontSize: '32px', fill: '#0000FF' });
   this.redScoreText = this.add.text(584, 16, '', { fontSize: '32px', fill: '#FF0000' });
 
 /*
-  var video = document.createElement('canvas');
+  var video = document.createElement('video');
     video.height = 240;
     video.width = 320;
     video.playsinline = true;
     video.autoplay = true;
     self.videoelement = this.add.dom(250, 300, video);
-    self.chatPlayer = null;
     */
+    self.chatPlayer = null;
+
 
     var myHeadVideoCanvas = this.textures.createCanvas('myheadvideo', 256, 256);
 	  webcamVideo(myHeadVideoCanvas);
@@ -96,7 +98,7 @@ function create() {
       // Add cutout canvas to Track
       var stream = myHeadVideoCanvas.canvas.captureStream(30);
       var track = stream.getVideoTracks()[0];
-      pc.addTrack(track);
+      pc.addTrack(track, stream);
     });
 
 
@@ -138,8 +140,16 @@ function create() {
 
     // connect audio / video
     pc.addEventListener('track', function(evt) {
+      addVideo(evt.streams[0]);
         if (evt.track.kind == 'video') {
-	    addVideo(evt.streams[0]);
+            self.players.getChildren().forEach(function (player) {
+              // TODO: work out from the event which player video this is
+              if (player.playerId !== self.socket.id) {
+                player.video.srcObject = evt.streams[0];
+                //player.videoelement.play();
+                player.video.play();
+              }
+            });
 	} else if (evt.track.kind == 'audio' && audio_target !== undefined) {
             //audio_target.srcObject = evt.streams[0];
 	}
@@ -196,6 +206,9 @@ function create() {
         if (players[id].playerId === player.playerId) {
           player.setRotation(players[id].rotation);
           player.setPosition(players[id].x, players[id].y);
+          player.videoelement.setRotation(players[id].rotation);
+          player.videoelement.setPosition(players[id].x, players[id].y);
+
         }
 
 	  // if (players[id].playerId === self.socket.id) {
@@ -251,7 +264,17 @@ function update() {
 }
 
 function displayPlayers(self, playerInfo, sprite) {
-  const player = self.add.sprite(playerInfo.x, playerInfo.y, sprite).setOrigin(0.5, 0.5).setDisplaySize(53, 40);
+  const player = self.add.sprite(playerInfo.x, playerInfo.y, sprite).setOrigin(0.5, 0.5).setDisplaySize(128, 128);
+
+  const video = document.createElement('video');
+  video.height = 128;
+  video.width = 128;
+  video.playsinline = true;
+  video.autoplay = true;
+  const videoelement = self.add.dom(player.x, player.y, video);
+  player.video = video;
+  player.videoelement = videoelement;
+
   if (playerInfo.team === 'blue') {
     //player.setTint(0x0000ff);
   } else {
@@ -335,7 +358,7 @@ function webcamVideo(headCanvas) {
   	  ctx.strokeStyle = 'green';
   	  ctx.strokeRect(box.x, box.y, box.width, box.height);
     }
-  }, 100)
+  }, 250)
 
   window.requestAnimationFrame(copyCutout);
 
@@ -367,8 +390,8 @@ function addVideo(stream) {
     v.width = '320';
     v.autoplay = 'true';
     v.playsinline = 'true';
-    video_div.appendChild(v)
     v.srcObject = stream;
+    video_div.appendChild(v)
     v.play();
     return v;
 }
