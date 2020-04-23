@@ -89,10 +89,19 @@ function create() {
     });
 
     document.getElementById('audio-button').addEventListener('click', () => {
-      // add webcam audio track to streams
-      var audio_track = webcam_stream.getAudioTracks()[0];
-      pc.addTrack(audio_track, webcam_stream);
-    });
+        // add webcam audio track to streams
+        var constraints = {
+            audio: {
+              echo_cancellation: true
+            }
+        };
+
+        navigator.mediaDevices.getUserMedia(constraints).then(stream => {
+          var audio_track = stream.getAudioTracks()[0];
+          pc.addTrack(audio_track, stream);
+        });
+      });
+
 
     document.getElementById('cutout-button').addEventListener('click', () => {
       // Add cutout canvas to Track
@@ -139,9 +148,9 @@ function create() {
     });
 
     // connect audio / video
-    pc.addEventListener('track', function(evt) {
-      addVideo(evt.streams[0]);
+    pc.addEventListener('track', evt => {
         if (evt.track.kind == 'video') {
+          addVideo(evt.streams[0]);
             self.players.getChildren().forEach(function (player) {
               // TODO: work out from the event which player video this is
               if (player.playerId !== self.socket.id) {
@@ -150,10 +159,14 @@ function create() {
                 player.video.play();
               }
             });
-	} else if (evt.track.kind == 'audio' && audio_target !== undefined) {
-            //audio_target.srcObject = evt.streams[0];
-	}
-    });
+          } else if (evt.track.kind == 'audio') {
+            var audio_elem = document.createElement("audio");
+          	// var audio_elem = document.getElementById("audio");
+          	audio_elem.srcObject = evt.streams[0];
+          	audio_elem.play();
+        }
+      }
+    );
 
     this.socket.on('webrtc', function(webrtcdata) {
 	console.log('Got webrtc type' + webrtcdata.type);
