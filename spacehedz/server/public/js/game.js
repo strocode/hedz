@@ -64,7 +64,6 @@ function create() {
     */
 
     var myHeadVideoCanvas = this.textures.createCanvas('myheadvideo', 256, 256);
-
 	  webcamVideo(myHeadVideoCanvas);
 
     document.getElementById('webcam-button').addEventListener('click', function() {
@@ -85,6 +84,19 @@ function create() {
 	    alert('Couldnt open screen' + err);
 	});
 
+    });
+
+    document.getElementById('audio-button').addEventListener('click', () => {
+      // add webcam audio track to streams
+      var audio_track = webcam_stream.getAudioTracks()[0];
+      pc.addTrack(audio_track, webcam_stream);
+    });
+
+    document.getElementById('cutout-button').addEventListener('click', () => {
+      // Add cutout canvas to Track
+      var stream = myHeadVideoCanvas.canvas.captureStream(30);
+      var track = stream.getVideoTracks()[0];
+      pc.addTrack(track);
     });
 
 
