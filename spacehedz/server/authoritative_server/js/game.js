@@ -9,7 +9,9 @@ const config = {
     default: 'arcade',
     arcade: {
       debug: false,
-      gravity: { y: 0 }
+      gravity: {
+        y: 0
+      }
     }
   },
   scene: {
@@ -37,7 +39,7 @@ function create() {
   this.star = this.physics.add.image(randomPosition(700), randomPosition(500), 'star');
   this.physics.add.collider(this.players);
 
-  this.physics.add.overlap(this.players, this.star, function (star, player) {
+  this.physics.add.overlap(this.players, this.star, function(star, player) {
     if (players[player.playerId].team === 'red') {
       self.scores.red += 10;
     } else {
@@ -45,10 +47,13 @@ function create() {
     }
     self.star.setPosition(randomPosition(700), randomPosition(500));
     io.emit('updateScore', self.scores);
-    io.emit('starLocation', { x: self.star.x, y: self.star.y });
+    io.emit('starLocation', {
+      x: self.star.x,
+      y: self.star.y
+    });
   });
 
-  io.on('connection', function (socket) {
+  io.on('connection', function(socket) {
     console.log('a user connected');
     // create a new player and add it to our players object
     players[socket.id] = {
@@ -71,11 +76,14 @@ function create() {
     // update all other players of the new player
     socket.broadcast.emit('newPlayer', players[socket.id]);
     // send the star object to the new player
-    socket.emit('starLocation', { x: self.star.x, y: self.star.y });
+    socket.emit('starLocation', {
+      x: self.star.x,
+      y: self.star.y
+    });
     // send the current scores
     socket.emit('updateScore', self.scores);
 
-    socket.on('disconnect', function () {
+    socket.on('disconnect', function() {
       console.log('user disconnected');
       // remove player from server
       removePlayer(self, socket.id);
@@ -85,18 +93,18 @@ function create() {
       io.emit('disconnect', socket.id);
     });
     // when a player moves, update the player data
-    socket.on('playerInput', function (inputData) {
+    socket.on('playerInput', function(inputData) {
       handlePlayerInput(self, socket.id, inputData);
     });
 
     // send webrtc chat data to the requested player
-      socket.on('webrtc', function(webrtcdata) {
-	  console.log('Got webrtc' + JSON.stringify(webrtcdata));
-	var playerId = webrtcdata.playerId;
-	socket.broadcast.to(playerId).emit('webrtc', webrtcdata);
+    socket.on('webrtc', function(webrtcdata) {
+      console.log('Got webrtc' + JSON.stringify(webrtcdata));
+      var playerId = webrtcdata.playerId;
+      socket.broadcast.to(playerId).emit('webrtc', webrtcdata);
     });
 
-      
+
 
 
   });
