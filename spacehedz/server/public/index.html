@@ -3,20 +3,37 @@
 
     <head>
         <meta charset="utf-8">
+        <style>
+      #buttons {
+        visibility: hidden;
+        height: 0px;
+      }
+      #debug {
+        visibility: hidden;
+        height: 0px;
+
+      }
+      #videos {
+        visibility: hidden;
+        height: 0px;
+      }
+        </style>
     </head>
 
     <body>
 
       <div id="videos"></div>
-
-
       <div id="game-div"></div>
 
+      <div id="buttons">
       <button id="webcam-button">Send webcam</button>
       <button id="screen-button">Send screen</button>
       <button id="cutout-button">Send cutout</button>
       <button id="audio-button">Send audio</button>
 
+  </div>
+
+  <div id="debug">
 
 	<h2>Options</h2>
 <div class="option">
@@ -101,7 +118,7 @@
 
 <h2>Data channel</h2>
 <pre id="data-channel" ></pre>
-
+</div>
 
         <script src="/socket.io/socket.io.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/phaser@3.22.0/dist/phaser.min.js"></script>
