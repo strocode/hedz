@@ -54,15 +54,17 @@ function create() {
   });
 
   io.on('connection', function(socket) {
-    console.log('a user connected');
     // create a new player and add it to our players object
+    const nplayers = Object.keys(players).length;
+    var team = (nplayers + 1) % 2 == 0 ? 'red' : 'blue'
+    console.log('New user team=' + team + ' nplayers now=' + nplayers);
+
     players[socket.id] = {
       rotation: 0,
       x: Math.floor(Math.random() * 700) + 50,
       y: Math.floor(Math.random() * 500) + 50,
       playerId: socket.id,
-      //playerSocket:socket,
-      team: (Math.floor(Math.random() * 2) == 0) ? 'red' : 'blue',
+      team: team,
       input: {
         left: false,
         right: false,
@@ -103,10 +105,6 @@ function create() {
       var playerId = webrtcdata.playerId;
       socket.broadcast.to(playerId).emit('webrtc', webrtcdata);
     });
-
-
-
-
   });
 }
 
@@ -148,7 +146,7 @@ function handlePlayerInput(self, playerId, input) {
 }
 
 function addPlayer(self, playerInfo) {
-  const player = self.physics.add.image(playerInfo.x, playerInfo.y, 'ship').setOrigin(0.5, 0.5).setDisplaySize(53, 40);
+  const player = self.physics.add.image(playerInfo.x, playerInfo.y, 'ship').setOrigin(0.5, 0.5).setDisplaySize(128, 128);
   player.setDrag(100);
   player.setAngularDrag(100);
   player.setMaxVelocity(200);
