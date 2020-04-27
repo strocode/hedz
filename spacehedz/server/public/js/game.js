@@ -27,6 +27,8 @@ var cutout_video;
 class RocketHead {
   constructor(scene, playerInfo, sprite)
   {
+    //super(scene, playerInfo.x, playerInfo.y);
+    scene.add.existing(this);
     this.playerInfo = playerInfo
     this.playerSprite = scene.add.sprite(playerInfo.x, playerInfo.y, sprite).setOrigin(0.5, 0.5).setDisplaySize(128, 128);
     const player = this;
@@ -62,6 +64,12 @@ class RocketHead {
     this.playerSprite.setPosition(x, y);
     this.videoelement.setPosition(x, y);
     this.playerBorder.setPosition(x, y);;
+  }
+
+  destroy() {
+    this.playerSprite.destroy();
+    this.videoelement.destroy();
+    this.playerBorder.destroy();
   }
 }
 
@@ -254,7 +262,7 @@ function create() {
   this.socket.on('disconnect', function(playerId) {
     self.players.getChildren().forEach(function(player) {
       if (playerId === player.playerId) {
-        player.destroy();
+        player.parent.destroy();
       }
     });
   });
