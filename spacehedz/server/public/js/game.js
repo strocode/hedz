@@ -24,6 +24,47 @@ var last_rect = {};
 var webcam_video;
 var cutout_video;
 
+class RocketHead {
+  constructor(scene, playerInfo, sprite)
+  {
+    this.playerInfo = playerInfo
+    this.playerSprite = scene.add.sprite(playerInfo.x, playerInfo.y, sprite).setOrigin(0.5, 0.5).setDisplaySize(128, 128);
+    const player = this;
+    const video = document.createElement('video');
+    video.height = 128;
+    video.width = 128;
+    video.playsinline = true;
+    video.autoplay = true;
+    const videoelement = scene.add.dom(player.x, player.y, video);
+    player.video = video;
+    player.videoelement = videoelement;
+    this.playerBorder = scene.add.rectangle(playerInfo.x, playerInfo.y, 128+2, 128+2).setOrigin(0.5,0.5);
+
+    if (playerInfo.team === 'blue') {
+      this.playerBorder.setStrokeStyle(2,0x0000ff,1);
+    } else {
+      this.playerBorder.setStrokeStyle(2,0xff0000,1);
+    }
+
+    // hack because I'm too scared to use containers
+    // Used by the player updates to move things around
+    this.playerSprite.playerId = playerInfo.playerId;
+    this.playerSprite.parent = this;
+  }
+
+  setRotation(rot) {
+    this.playerSprite.setRotation(rot);
+    this.videoelement.setRotation(rot);
+    this.playerBorder.setRotation(rot);
+  }
+
+  setPosition(x, y) {
+    this.playerSprite.setPosition(x, y);
+    this.videoelement.setPosition(x, y);
+    this.playerBorder.setPosition(x, y);;
+  }
+}
+
 //
 Promise.all([
   faceapi.nets.tinyFaceDetector.loadFromUri('/models'),
@@ -222,17 +263,9 @@ function create() {
     Object.keys(players).forEach(function(id) {
       self.players.getChildren().forEach(function(player) {
         if (players[id].playerId === player.playerId) {
-          player.setRotation(players[id].rotation);
-          player.setPosition(players[id].x, players[id].y);
-          player.videoelement.setRotation(players[id].rotation);
-          player.videoelement.setPosition(players[id].x, players[id].y);
-
+          player.parent.setRotation(players[id].rotation);
+          player.parent.setPosition(players[id].x, players[id].y);
         }
-
-        // if (players[id].playerId === self.socket.id) {
-        //     self.videoelement.setRotation(players[id].rotation);
-        //     self.videoelement.setPosition(players[id].x, players[id].y);
-        // }
       });
     });
   });
@@ -286,24 +319,9 @@ function update() {
 }
 
 function displayPlayers(self, playerInfo, sprite) {
-  const player = self.add.sprite(playerInfo.x, playerInfo.y, sprite).setOrigin(0.5, 0.5).setDisplaySize(128, 128);
-
-  const video = document.createElement('video');
-  video.height = 128;
-  video.width = 128;
-  video.playsinline = true;
-  video.autoplay = true;
-  const videoelement = self.add.dom(player.x, player.y, video);
-  player.video = video;
-  player.videoelement = videoelement;
-
-  if (playerInfo.team === 'blue') {
-    //player.setTint(0x0000ff);
-  } else {
-    //player.setTint(0xff0000);
-  }
-  player.playerId = playerInfo.playerId;
-  self.players.add(player);
+  const player = new RocketHead(self, playerInfo, sprite);
+  self.add.existing(player);
+  self.players.add(player.playerSprite);
   if (player.playerId !== self.socket.id) {
     self.chatPlayer = player.playerId;
     console.log('Set chat player to ' + self.chatPlayer);
