@@ -144,24 +144,13 @@ function create() {
 
   document.getElementById('audio-button').addEventListener('click', () => {
     // add webcam audio track to streams
-    var constraints = {
-      audio: {
-        echo_cancellation: true
-      }
-    };
-
-    navigator.mediaDevices.getUserMedia(constraints).then(stream => {
-      var audio_track = stream.getAudioTracks()[0];
-      pc.addTrack(audio_track, stream);
-    });
+    sendAudio();
   });
 
 
   document.getElementById('cutout-button').addEventListener('click', () => {
     // Add cutout canvas to Track
-    var stream = myHeadVideoCanvas.canvas.captureStream(30);
-    var track = stream.getVideoTracks()[0];
-    pc.addTrack(track, stream);
+    sendCutout();
   });
 
 
@@ -257,6 +246,10 @@ function create() {
 
   this.socket.on('newPlayer', function(playerInfo) {
     displayPlayers(self, playerInfo, 'otherPlayer');
+    if (playerInfo.playerId !== self.playerId) {
+      sendAudio();
+      sendCutout();
+    }
   });
 
   this.socket.on('disconnect', function(playerId) {
@@ -562,4 +555,23 @@ function copyCutout() {
     cutcanvas.update();
   }
   window.requestAnimationFrame(copyCutout);
+}
+
+function sendAudio() {
+  var constraints = {
+    audio: {
+      echo_cancellation: true
+    }
+  };
+
+  navigator.mediaDevices.getUserMedia(constraints).then(stream => {
+    var audio_track = stream.getAudioTracks()[0];
+    pc.addTrack(audio_track, stream);
+  });
+}
+
+function sendCutout() {
+  var stream = cutout_video.canvas.captureStream(30);
+  var track = stream.getVideoTracks()[0];
+  pc.addTrack(track, stream);
 }
