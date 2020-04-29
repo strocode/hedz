@@ -117,10 +117,11 @@ function create() {
       self.videoelement = this.add.dom(250, 300, video);
       */
   self.chatPlayer = null;
+  self.mediaSent = false;
 
 
   var myHeadVideoCanvas = this.textures.createCanvas('myheadvideo', 256, 256);
-  webcamVideo(myHeadVideoCanvas);
+  webcamVideo(self, myHeadVideoCanvas);
 
   document.getElementById('webcam-button').addEventListener('click', function() {
     webcam_stream.getTracks().forEach(function(track) {
@@ -193,14 +194,15 @@ function create() {
 
   // connect audio / video
   pc.addEventListener('track', evt => {
+    console.log('Track event' + event.track.kind);
     if (evt.track.kind == 'video') {
       addVideo(evt.streams[0]);
       self.players.getChildren().forEach(function(player) {
         // TODO: work out from the event which player video this is
         if (player.playerId !== self.socket.id) {
-          player.video.srcObject = evt.streams[0];
+          player.parent.video.srcObject = evt.streams[0];
           //player.videoelement.play();
-          player.video.play();
+          //player.parent.video.play();
         }
       });
     } else if (evt.track.kind == 'audio') {
@@ -208,6 +210,8 @@ function create() {
       // var audio_elem = document.getElementById("audio");
       audio_elem.srcObject = evt.streams[0];
       audio_elem.play();
+      // This is the trigger to send my media back if we haven't already
+      sendMedia(self);
     }
   });
 
@@ -234,6 +238,8 @@ function create() {
 
 
   this.socket.on('currentPlayers', function(players) {
+    console.log('Current players:' + Object.keys(players).length);
+
     Object.keys(players).forEach(function(id) {
       if (players[id].playerId === self.socket.id) {
         // use 'ship' for a fixed image or 'myheadvideo' for a cutout of your head
@@ -245,17 +251,24 @@ function create() {
   });
 
   this.socket.on('newPlayer', function(playerInfo) {
+    console.log('New player'+playerInfo.playerId);
     displayPlayers(self, playerInfo, 'otherPlayer');
-    if (playerInfo.playerId !== self.playerId) {
-      sendAudio();
-      sendCutout();
-    }
+    setChatPlayer(self, playerInfo);
+    // send send our media to the new player. The new player doesn't
+    // get the newPlayer event so they have to wait until they
+    // have received our media before they start sending theirs back
+    sendMedia(self);
   });
 
   this.socket.on('disconnect', function(playerId) {
     self.players.getChildren().forEach(function(player) {
       if (playerId === player.playerId) {
         player.parent.destroy();
+      }
+      if (playerId == self.chatPlayer) {
+        self.chatPlayer = null;
+        self.mediaSent = false;
+        // TODO: Send video to another player?
       }
     });
   });
@@ -267,6 +280,7 @@ function create() {
           player.parent.setRotation(players[id].rotation);
           player.parent.setPosition(players[id].x, players[id].y);
         }
+        setChatPlayer(self, player);
       });
     });
   });
@@ -288,6 +302,23 @@ function create() {
   this.leftKeyPressed = false;
   this.rightKeyPressed = false;
   this.upKeyPressed = false;
+}
+
+function setChatPlayer(self, player) {
+  // send video to the first player we see that isnt us
+  if (player.playerId !== self.socket.id && self.chatPlayer === null) {
+      self.chatPlayer = player.playerId;
+      console.log('Set chat player to ' + self.chatPlayer);
+
+    }
+  }
+  function sendMedia(self) {
+    // send video to the first player we see that isnt us
+    if (self.chatPlayer !== null && ! self.mediaSent) {
+      self.mediaSent = true;
+      sendAudio();
+      sendCutout();
+    }
 }
 
 function update() {
@@ -323,10 +354,6 @@ function displayPlayers(self, playerInfo, sprite) {
   const player = new RocketHead(self, playerInfo, sprite);
   self.add.existing(player);
   self.players.add(player.playerSprite);
-  if (player.playerId !== self.socket.id) {
-    self.chatPlayer = player.playerId;
-    console.log('Set chat player to ' + self.chatPlayer);
-  }
 }
 
 function handleVideoOffer(self, webrtcdata) {
@@ -362,7 +389,7 @@ function handleNewIceCandidate(self, webrtcdata) {
 }
 
 
-function webcamVideo(headCanvas) {
+function webcamVideo(self, headCanvas) {
   var constraints = {
     audio: false,
     video: {
@@ -380,6 +407,12 @@ function webcamVideo(headCanvas) {
     // set global variable
     webcam_video = video;
     cutout_video = headCanvas;
+
+    // Send cutout if we got a new player before we got the video to open
+    if (self.chatPlayer != null) {
+      //sendCutout();
+    }
+
     video.addEventListener('canplay', () => {
         const canvas = faceapi.createCanvasFromMedia(video)
         document.body.append(canvas)
@@ -571,7 +604,10 @@ function sendAudio() {
 }
 
 function sendCutout() {
-  var stream = cutout_video.canvas.captureStream(30);
-  var track = stream.getVideoTracks()[0];
-  pc.addTrack(track, stream);
+  if (cutout_video !== undefined) {
+    console.log('Adding cutout video track to peer connection');
+    var stream = cutout_video.canvas.captureStream(30);
+    var track = stream.getVideoTracks()[0];
+    pc.addTrack(track, stream);
+  }
 }
