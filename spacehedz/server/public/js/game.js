@@ -117,6 +117,7 @@ function create() {
       self.videoelement = this.add.dom(250, 300, video);
       */
   self.chatPlayer = null;
+  self.mediaMaster = null;
   self.mediaSent = false;
 
 
@@ -145,13 +146,13 @@ function create() {
 
   document.getElementById('audio-button').addEventListener('click', () => {
     // add webcam audio track to streams
-    sendAudio();
+    sendAudio(self);
   });
 
 
   document.getElementById('cutout-button').addEventListener('click', () => {
     // Add cutout canvas to Track
-    sendCutout();
+    sendCutout(self);
   });
 
 
@@ -201,6 +202,7 @@ function create() {
         // TODO: work out from the event which player video this is
         if (player.playerId !== self.socket.id) {
           player.parent.video.srcObject = evt.streams[0];
+          sendCutout(self);
           //player.videoelement.play();
           //player.parent.video.play();
         }
@@ -211,7 +213,7 @@ function create() {
       audio_elem.srcObject = evt.streams[0];
       audio_elem.play();
       // This is the trigger to send my media back if we haven't already
-      sendMedia(self);
+      sendAudio(self);
     }
   });
 
@@ -239,7 +241,6 @@ function create() {
 
   this.socket.on('currentPlayers', function(players) {
     console.log('Current players:' + Object.keys(players).length);
-
     Object.keys(players).forEach(function(id) {
       if (players[id].playerId === self.socket.id) {
         // use 'ship' for a fixed image or 'myheadvideo' for a cutout of your head
@@ -257,6 +258,9 @@ function create() {
     // send send our media to the new player. The new player doesn't
     // get the newPlayer event so they have to wait until they
     // have received our media before they start sending theirs back
+
+    // We're the media mediaMaster
+    self.mediaMaster = true;
     sendMedia(self);
   });
 
@@ -316,8 +320,8 @@ function setChatPlayer(self, player) {
     // send video to the first player we see that isnt us
     if (self.chatPlayer !== null && ! self.mediaSent) {
       self.mediaSent = true;
-      sendAudio();
-      sendCutout();
+      sendAudio(self);
+      sendCutout(self);
     }
 }
 
@@ -409,10 +413,7 @@ function webcamVideo(self, headCanvas) {
     cutout_video = headCanvas;
 
     // Send cutout if we got a new player before we got the video to open
-    if (self.chatPlayer != null) {
-      //sendCutout();
-    }
-
+    sendCutout(self);
     video.addEventListener('canplay', () => {
         const canvas = faceapi.createCanvasFromMedia(video)
         document.body.append(canvas)
@@ -474,7 +475,7 @@ function addVideo(stream) {
   v.playsinline = 'true';
   v.srcObject = stream;
   video_div.appendChild(v)
-  v.play();
+  //v.play(); // cant do unless interacted first
   return v;
 }
 
@@ -590,7 +591,10 @@ function copyCutout() {
   window.requestAnimationFrame(copyCutout);
 }
 
-function sendAudio() {
+function sendAudio(self) {
+  if (self.audioSent) {
+    return;
+  }
   var constraints = {
     audio: {
       echo_cancellation: true
@@ -600,14 +604,24 @@ function sendAudio() {
   navigator.mediaDevices.getUserMedia(constraints).then(stream => {
     var audio_track = stream.getAudioTracks()[0];
     pc.addTrack(audio_track, stream);
+    self.audioSent = true;
   });
 }
 
-function sendCutout() {
+function sendCutout(self) {
+  if (self.cutoutSent) {
+    return;
+  }
+  if (self.chatPlayer == undefined) {
+    console.log('Requested cutout but now chat player');
+  }
   if (cutout_video !== undefined) {
     console.log('Adding cutout video track to peer connection');
     var stream = cutout_video.canvas.captureStream(30);
     var track = stream.getVideoTracks()[0];
     pc.addTrack(track, stream);
+    self.cutoutSent = true;
+  } else {
+    console.log("Cutout video not yet defined!");
   }
 }
