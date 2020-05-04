@@ -1,3 +1,6 @@
+'use strict'
+
+
 var config = {
   type: Phaser.AUTO,
   parent: 'game-div',
@@ -7,10 +10,37 @@ var config = {
   dom: {
     createContainer: true
   },
+  physics: {
+        default: 'impact',
+        impact: {
+            setBounds: {
+                x: 0,
+                y: 0,
+                width: 800,
+                height: 600,
+                thickness: 32
+            }
+        }
+    },
   scene: {
     preload: preload,
     create: create,
-    update: update
+    update: update,
+    extend: {
+            minimap: null,
+            player: null,
+            cursors: null,
+            thrust: null,
+            flares: null,
+            bullets: null,
+            lastFired: 0,
+            text: null,
+            //createBulletEmitter: createBulletEmitter,
+            //createStarfield: createStarfield,
+            //createLandscape: createLandscape,
+            //createAliens: createAliens,
+            createThrustEmitter: createThrustEmitter
+        },
   }
 };
 
@@ -91,6 +121,8 @@ function preload() {
   this.load.image('ship', 'assets/spaceShips_001.png');
   this.load.image('otherPlayer', 'assets/enemyBlack5.png');
   this.load.image('star', 'assets/star_gold.png');
+  this.load.image('jets', 'phaser3_assets/particles/blue.png');
+  this.load.image('flares', 'phaser3_assets/particles/yellow.png');
 }
 
 function create() {
@@ -120,6 +152,7 @@ function create() {
   self.mediaMaster = null;
   self.mediaSent = false;
 
+  this.createThrustEmitter();
 
   var myHeadVideoCanvas = this.textures.createCanvas('myheadvideo', 256, 256);
   webcamVideo(self, myHeadVideoCanvas);
@@ -280,9 +313,22 @@ function create() {
   this.socket.on('playerUpdates', function(players) {
     Object.keys(players).forEach(function(id) {
       self.players.getChildren().forEach(function(player) {
+        const pli = players[id];
         if (players[id].playerId === player.playerId) {
-          player.parent.setRotation(players[id].rotation);
-          player.parent.setPosition(players[id].x, players[id].y);
+          player.parent.setRotation(pli.rotation);
+          player.parent.setPosition(pli.x, pli.y);
+          if (pli.thrusting) {
+            self.thrust.setPosition(pli.x, pli.y);
+            console.log(pli.playerId + ' rotation' + pli.rotation);
+            const deg = Phaser.Math.RadToDeg(pli.rotation);
+            self.thrust.setAngle({
+              min:deg-10+90,
+              max:deg+10+90
+            });
+            self.thrust.setSpeed(1000);
+            self.thrust.emitParticle(32);
+          }
+
         }
         setChatPlayer(self, player);
       });
@@ -407,7 +453,7 @@ function webcamVideo(self, headCanvas) {
     console.log('Got stream' + stream);
     //videoelement.srcObject = stream;
     webcam_stream = stream;
-    video = addVideo(stream);
+    const video = addVideo(stream);
     // set global variable
     webcam_video = video;
     cutout_video = headCanvas;
@@ -624,4 +670,17 @@ function sendCutout(self) {
   } else {
     console.log("Cutout video not yet defined!");
   }
+}
+
+function createThrustEmitter ()
+{
+    this.thrust = this.add.particles('jets').createEmitter({
+        x: 1600,
+        y: 200,
+        angle: { min: 160, max: 200 },
+        scale: { start: 0.5, end: 0 },
+        blendMode: 'ADD',
+        lifespan: 1000,
+        on: false
+    });
 }

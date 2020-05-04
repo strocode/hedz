@@ -120,7 +120,7 @@ function update() {
     }
 
     if (input.up) {
-      this.physics.velocityFromRotation(player.rotation + 1.5, 200, player.body.acceleration);
+      this.physics.velocityFromRotation(player.rotation + 1.5, -200, player.body.acceleration);
     } else {
       player.setAcceleration(0);
     }
@@ -128,6 +128,7 @@ function update() {
     players[player.playerId].x = player.x;
     players[player.playerId].y = player.y;
     players[player.playerId].rotation = player.rotation;
+    players[player.playerId].thrusting = Boolean(input.up);
   });
   this.physics.world.wrap(this.players, 5);
   io.emit('playerUpdates', players);
