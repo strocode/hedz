@@ -1,11 +1,13 @@
 'use strict'
 
+const GAME_WIDTH = 800;
+const GAME_HEIGHT = 600;
 
 var config = {
   type: Phaser.AUTO,
   parent: 'game-div',
-  width: 800,
-  height: 600,
+  width: GAME_WIDTH,
+  height: GAME_HEIGHT,
   // I think I need dom.createContainer = true for video?
   dom: {
     createContainer: true
@@ -16,8 +18,8 @@ var config = {
             setBounds: {
                 x: 0,
                 y: 0,
-                width: 800,
-                height: 600,
+                width: GAME_WIDTH,
+                height: GAME_HEIGHT,
                 thickness: 32
             }
         }
@@ -140,7 +142,15 @@ function create() {
     fill: '#FF0000'
   });
 
-  /*
+  this.statusText = this.add.text(16, 600-16-4, '', {
+    fontSize:'16px',
+    fill:'#FF0000'
+  });
+
+  this.smileMeter = this.add.rectangle(20,GAME_HEIGHT-20, 20, 100, 0x00ff00, 0.5).setOrigin(0.5,1.0);
+  this.boostMeter = this.add.rectangle(50,GAME_HEIGHT-20, 20, 100, 0x00ff00, 0.5).setOrigin(0.5,1.0);
+
+    /*
     var video = document.createElement('video');
       video.height = 240;
       video.width = 320;
@@ -319,7 +329,6 @@ function create() {
           player.parent.setPosition(pli.x, pli.y);
           if (pli.thrusting) {
             self.thrust.setPosition(pli.x, pli.y);
-            console.log(pli.playerId + ' rotation' + pli.rotation);
             const deg = Phaser.Math.RadToDeg(pli.rotation);
             self.thrust.setAngle({
               min:deg-10+90,
@@ -398,6 +407,8 @@ function update() {
       up: this.upKeyPressed
     });
   }
+  //this.physics.world.wrap(this.thrust, 5);
+
 }
 
 function displayPlayers(self, playerInfo, sprite) {
@@ -469,10 +480,45 @@ function webcamVideo(self, headCanvas) {
         }
         faceapi.matchDimensions(canvas, displaySize)
         setInterval(async () => {
-          detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceExpressions()
-          //const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions());
+          //console.time('detections');
+          const tstart = performance.now();
+          detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceExpressions();
+          const tend = performance.now();
+          detections.tstart = tstart;
+          detections.tend = tend;
+          const tdiff = Math.round(tend - tstart);
+          const ndet = detections.length;
+          let txt = `Detection time ${tdiff}ms ndet=${ndet}`
+          //console.timeEnd('detections');
+          //resizedDetections = faceapi.resizeResults(detections, displaySize)
 
-          resizedDetections = faceapi.resizeResults(detections, displaySize)
+          if (detections.length === 1) {
+            const smileValue = detections[0].expressions.happy;
+            const maxh = 300;
+            self.smileMeter.displayHeight = maxh*smileValue;
+            let h = self.boostMeter.displayHeight;
+            if (smileValue >= 0.8) {
+              h += 10;
+              if (h > maxh) {
+                h = maxh;
+                // make boost happen for 3 seconds()
+              }
+            } else {
+              h -= 10;
+              if (h < 0) {
+                h = 0;
+              }
+            }
+
+            self.boostMeter.displayHeight = h;
+
+            txt = txt + ` smile=${smileValue}`
+          }
+
+          self.statusText.setText(txt);
+
+
+
           if (false) {
             const ctx = canvas.getContext('2d');
             ctx.clearRect(0, 0, canvas.width, canvas.height)
@@ -487,7 +533,7 @@ function webcamVideo(self, headCanvas) {
               ctx.strokeRect(box.x, box.y, box.width, box.height);
             }
           }
-        }, 250)
+        }, 100)
 
         window.requestAnimationFrame(copyCutout);
 
@@ -680,7 +726,7 @@ function createThrustEmitter ()
         angle: { min: 160, max: 200 },
         scale: { start: 0.5, end: 0 },
         blendMode: 'ADD',
-        lifespan: 1000,
+        lifespan: 250,
         on: false
     });
 }
