@@ -68,8 +68,11 @@ function create() {
       input: {
         left: false,
         right: false,
-        up: false
-      }
+        up: false,
+        boostLevel: 0,
+        smileLevel:0,
+      },
+
     };
     // add player to server
     addPlayer(self, players[socket.id]);
@@ -111,6 +114,7 @@ function create() {
 function update() {
   this.players.getChildren().forEach((player) => {
     const input = players[player.playerId].input;
+
     if (input.left) {
       player.setAngularVelocity(-300);
     } else if (input.right) {
@@ -120,7 +124,11 @@ function update() {
     }
 
     if (input.up) {
-      this.physics.velocityFromRotation(player.rotation + 1.5, -200, player.body.acceleration);
+      // Boost level controls how big your thrusters are
+      const thrust = input.boostLevel === 1 ? 400 : 50;
+      console.log('Boost' + input.boostLevel + `thrust ${thrust}`);
+
+      this.physics.velocityFromRotation(player.rotation + Phaser.Math.TAU, -thrust, player.body.acceleration);
     } else {
       player.setAcceleration(0);
     }
@@ -129,6 +137,10 @@ function update() {
     players[player.playerId].y = player.y;
     players[player.playerId].rotation = player.rotation;
     players[player.playerId].thrusting = Boolean(input.up);
+    players[player.playerId].smileLevel = input.smileLevel;
+    players[player.playerId].boostLevel = input.boostLevel;
+
+
   });
   this.physics.world.wrap(this.players, 5);
   io.emit('playerUpdates', players);

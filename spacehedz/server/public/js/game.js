@@ -2,6 +2,7 @@
 
 const GAME_WIDTH = 800;
 const GAME_HEIGHT = 600;
+const MAX_SMILE_HEIGHT = 300;
 
 var config = {
   type: Phaser.AUTO,
@@ -330,11 +331,13 @@ function create() {
           if (pli.thrusting) {
             self.thrust.setPosition(pli.x, pli.y);
             const deg = Phaser.Math.RadToDeg(pli.rotation);
+            const thrustCone = pli.boostLevel === 1 ? 20 : 10;
             self.thrust.setAngle({
-              min:deg-10+90,
-              max:deg+10+90
+              min:deg-thrustCone+90,
+              max:deg+thrustCone+90
             });
-            self.thrust.setSpeed(1000);
+            self.thrust.setSpeed(pli.boostLevel === 1 ? 1000 : 500);
+            //self.thrust.setLifeSpan(pli.boostLevel === 1 ? 250 : 100);
             self.thrust.emitParticle(32);
           }
 
@@ -378,6 +381,7 @@ function setChatPlayer(self, player) {
       sendAudio(self);
       sendCutout(self);
     }
+
 }
 
 function update() {
@@ -401,15 +405,22 @@ function update() {
   }
 
   if (left !== this.leftKeyPressed || right !== this.rightKeyPressed || up !== this.upKeyPressed) {
-    this.socket.emit('playerInput', {
-      left: this.leftKeyPressed,
-      right: this.rightKeyPressed,
-      up: this.upKeyPressed
-    });
+    sendPlayerStatus(this);
   }
   //this.physics.world.wrap(this.thrust, 5);
 
 }
+
+function sendPlayerStatus(self) {
+    self.socket.emit('playerInput', {
+      left: self.leftKeyPressed,
+      right: self.rightKeyPressed,
+      up: self.upKeyPressed,
+      smileLevel: self.smileMeter.displayHeight / MAX_SMILE_HEIGHT,
+      boostLevel: self.boostMeter.displayHeight / MAX_SMILE_HEIGHT,
+    });
+}
+
 
 function displayPlayers(self, playerInfo, sprite) {
   const player = new RocketHead(self, playerInfo, sprite);
@@ -494,7 +505,7 @@ function webcamVideo(self, headCanvas) {
 
           if (detections.length === 1) {
             const smileValue = detections[0].expressions.happy;
-            const maxh = 300;
+            const maxh = MAX_SMILE_HEIGHT;
             self.smileMeter.displayHeight = maxh*smileValue;
             let h = self.boostMeter.displayHeight;
             if (smileValue >= 0.8) {
@@ -511,6 +522,9 @@ function webcamVideo(self, headCanvas) {
             }
 
             self.boostMeter.displayHeight = h;
+            if (h == MAX_SMILE_HEIGHT) {
+                startBoost(self);
+            }
 
             txt = txt + ` smile=${smileValue}`
           }
@@ -718,6 +732,10 @@ function sendCutout(self) {
   }
 }
 
+function startBoost(self) {
+  sendPlayerStatus(self);
+}
+
 function createThrustEmitter ()
 {
     this.thrust = this.add.particles('jets').createEmitter({
@@ -725,8 +743,8 @@ function createThrustEmitter ()
         y: 200,
         angle: { min: 160, max: 200 },
         scale: { start: 0.5, end: 0 },
-        blendMode: 'ADD',
         lifespan: 250,
+        blendMode: 'ADD',
         on: false
     });
 }
