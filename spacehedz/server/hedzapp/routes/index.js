@@ -39,7 +39,7 @@ router.get('/game/:gameId', function(req, res, next) {
     console.log('GameID is ' + gameId);
 
     // send game HTml file to client
-    res.sendFile(path.join(__dirname, '../public/rockethedz.html'));
+    res.sendFile(path.join(__dirname, '../public/game/rockethedz.html'));
 });
 
 function setupAuthoritativePhaser(gameId, io) {
