@@ -89,11 +89,12 @@ function create() {
     socket.emit('updateScore', self.scores);
 
     socket.on('disconnect', function() {
-      console.log('user disconnected');
       // remove player from server
       removePlayer(self, socket.id);
       // remove this player from our players object
       delete players[socket.id];
+      console.log(`user disconnected. Got ${players.length} left`);
+
       // emit a message to all players to remove this player
       io.emit('disconnect', socket.id);
     });
@@ -104,7 +105,7 @@ function create() {
 
     // send webrtc chat data to the requested player
     socket.on('webrtc', function(webrtcdata) {
-      console.log('Got webrtc' + JSON.stringify(webrtcdata));
+      //console.log('Got webrtc' + JSON.stringify(webrtcdata));
       var playerId = webrtcdata.playerId;
       socket.broadcast.to(playerId).emit('webrtc', webrtcdata);
     });
@@ -126,8 +127,6 @@ function update() {
     if (input.up) {
       // Boost level controls how big your thrusters are
       const thrust = input.boostLevel === 1 ? 400 : 50;
-      console.log('Boost' + input.boostLevel + `thrust ${thrust}`);
-
       this.physics.velocityFromRotation(player.rotation + Phaser.Math.TAU, -thrust, player.body.acceleration);
     } else {
       player.setAcceleration(0);

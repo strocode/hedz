@@ -60,10 +60,11 @@ function setupAuthoritativePhaser(gameId, io) {
         }
       };
       dom.window.URL.revokeObjectURL = (objectURL) => {};
+      dom.window.io = io;
+      dom.window.gameId = gameId;
       dom.window.gameLoaded = () => {
         resolve(dom);
       };
-      dom.window.io = io;
     }).catch((error) => {
       reject(Error(error.message));
     });
