@@ -30,6 +30,7 @@ function preload() {
 function create() {
   const self = this;
   this.players = this.physics.add.group();
+  this.gameId = document.gameId;
 
   this.scores = {
     blue: 0,

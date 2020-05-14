@@ -132,7 +132,10 @@ function preload() {
 
 function create() {
   var self = this;
-  this.socket = io();
+  const url_bits = window.location.href.split('/');
+  this.gameId = url_bits[url_bits.length - 1];
+  this.socketNamespace = '/rockethedz/' + this.gameId
+  this.socket = io(this.socketNamespace);
   this.playerId = this.socket.id;
   this.players = this.add.group();
 

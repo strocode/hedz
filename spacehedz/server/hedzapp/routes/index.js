@@ -59,8 +59,9 @@ function setupAuthoritativePhaser(gameId, io) {
           return datauri.format(blob.type, blob[Object.getOwnPropertySymbols(blob)[0]]._buffer).content;
         }
       };
+      const socketNamespace = '/rockethedz/' + gameId;
       dom.window.URL.revokeObjectURL = (objectURL) => {};
-      dom.window.io = io;
+      dom.window.io = io.of(socketNamespace);
       dom.window.gameId = gameId;
       dom.window.gameLoaded = () => {
         resolve(dom);

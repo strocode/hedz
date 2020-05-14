@@ -28,6 +28,8 @@ function setupAuthoritativePhaser() {
     // So requestAnimatinFrame events fire
     pretendToBeVisual: true
   }).then((dom) => {
+
+    // Add createObjectURL and revokeObjectURL because JSDOM doesn't have implementations
     dom.window.URL.createObjectURL = (blob) => {
       if (blob){
         return datauri.format(blob.type, blob[Object.getOwnPropertySymbols(blob)[0]]._buffer).content;
