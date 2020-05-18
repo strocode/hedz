@@ -21,25 +21,46 @@
         </style>
       -->
       <link rel="shortcut icon" href="data:image/x-icon;," type="image/x-icon">
+      <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.12.1/css/all.css" crossorigin="anonymous">
 
-    </head>
 
     <body>
 
+      <script>
+          function SendLinkByMail(href) {
+              var subject= "Interesting Information";
+              var body = "I thought you might find this information interesting:\r\n\r\n<";
+              body += window.location.href;
+              body += ">";
+              var uri = "mailto:?subject=";
+              uri += encodeURIComponent(subject);
+              uri += "&body=";
+              uri += encodeURIComponent(body);
+              window.open(uri);
+          }
+      </script>
+
       <div id="videos"></div>
+      <div id="share-buttons">
+        <h1>Share this game with a friend so they can play with you!</h1>
+
+        <button class="email" title="Email a friend" href="#" onclick="javascript:window.location='mailto:?subject=Interesting information&body=I thought you might find this information interesting: ' + window.location;">
+          <i class="fas fa-envelope"></i>
+        </button>
+        <!-- telegram buttons https://core.telegram.org/widgets/share#custom-buttons -->
+        <button href="https://t.me/share/url?url={url}&text=Play rockethedz with me!">
+          <i class="fas fa-paper-plane"></i>
+        <button>
+        <button href="https://wa.me/?text=Play rockethedz with me!">
+          <i class="fas fa-whatsapp"></i>
+        <button>
+        <button href="sms://?Play rockethedz with me!">
+          <i class="fas fa-sms">
+        </button>
+
+      </div>
       <div id="game-div"></div>
 
-      <div id="buttons">
-      <button id="webcam-button">Send webcam</button>
-      <button id="screen-button">Send screen</button>
-      <button id="cutout-button">Send cutout</button>
-      <button id="audio-button">Send audio</button>
-
-  </div>
-
-  <div id="debug">
-
-	<h2>Options</h2>
 <div class="option">
     <input id="use-datachannel" checked="checked" type="checkbox"/>
     <label for="use-datachannel">Use datachannel</label>
