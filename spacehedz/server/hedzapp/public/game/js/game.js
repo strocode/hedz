@@ -173,36 +173,37 @@ function create() {
   var myHeadVideoCanvas = this.textures.createCanvas('myheadvideo', 256, 256);
   webcamVideo(self, myHeadVideoCanvas);
 
-  document.getElementById('webcam-button').addEventListener('click', function() {
-    webcam_stream.getTracks().forEach(function(track) {
-      pc.addTrack(track, webcam_stream);
-    });
-  });
-
-  document.getElementById('screen-button').addEventListener('click', function() {
-    var constraints = {};
-    navigator.mediaDevices.getDisplayMedia(constraints).then(function(stream) {
-      addVideo(stream);
-      screen_stream = stream;
-      screen_stream.getTracks().forEach(function(track) {
-        pc.addTrack(track, screen_stream);
-      });
-    }, function(err) {
-      alert('Couldnt open screen' + err);
-    });
-
-  });
-
-  document.getElementById('audio-button').addEventListener('click', () => {
-    // add webcam audio track to streams
-    sendAudio(self);
-  });
-
-
-  document.getElementById('cutout-button').addEventListener('click', () => {
-    // Add cutout canvas to Track
-    sendCutout(self);
-  });
+  //
+  // document.getElementById('webcam-button')?.addEventListener('click', function() {
+  //   webcam_stream.getTracks().forEach(function(track) {
+  //     pc.addTrack(track, webcam_stream);
+  //   });
+  // });
+  //
+  // document.getElementById('screen-button')?.addEventListener('click', function() {
+  //   var constraints = {};
+  //   navigator.mediaDevices.getDisplayMedia(constraints).then(function(stream) {
+  //     addVideo(stream);
+  //     screen_stream = stream;
+  //     screen_stream.getTracks().forEach(function(track) {
+  //       pc.addTrack(track, screen_stream);
+  //     });
+  //   }, function(err) {
+  //     alert('Couldnt open screen' + err);
+  //   });
+  //
+  // });
+  //
+  // document.getElementById('audio-button')?.addEventListener('click', () => {
+  //   // add webcam audio track to streams
+  //   sendAudio(self);
+  // });
+  //
+  //
+  // document.getElementById('cutout-button')?.addEventListener('click', () => {
+  //   // Add cutout canvas to Track
+  //   sendCutout(self);
+  // });
 
 
   pc.addEventListener('icecandidate', function(event) {

@@ -3,8 +3,8 @@ const crypto = require('crypto');
 var router = express.Router();
 const path = require('path');
 const jsdom = require('jsdom');
-const Datauri = require('datauri');
-const datauri = new Datauri();
+const DatauriParser = require('datauri/parser');
+const parser = new DatauriParser();
 const { JSDOM } = jsdom;
 
 
@@ -17,7 +17,7 @@ router.get('/', function(req, res, next) {
 router.get('/newgame', async function(req, res, next) {
   // Make a number
   let randnum = Math.round(Math.random()*1e9);
-  //let randstr = randnum.toString(36);
+  //let randstr = randndatum.toString(36);
 
   // make some bits bits of randomness
   let randarr = new Uint32Array(2);
@@ -56,7 +56,8 @@ function setupAuthoritativePhaser(gameId, io) {
       // Add createObjectURL and revokeObjectURL because JSDOM doesn't have implementations
       dom.window.URL.createObjectURL = (blob) => {
         if (blob){
-          return datauri.format(blob.type, blob[Object.getOwnPropertySymbols(blob)[0]]._buffer).content;
+          const content = parser.format(blob.type, blob[Object.getOwnPropertySymbols(blob)[0]]._buffer).content;
+          return content;
         }
       };
       const socketNamespace = '/rockethedz/' + gameId;
