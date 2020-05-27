@@ -10,21 +10,24 @@ const { JSDOM } = jsdom;
 
 /* GET home page. */
 router.get('/', function(req, res, next) {
-  res.render('index', { title: 'Express' });
+  res.render('index', { title: 'Welcome to RocketHedz' });
 });
 
 /* Go to new game. Rediects to a random game page */
 router.get('/newgame', async function(req, res, next) {
-  // Make a number
-  let randnum = Math.round(Math.random()*1e9);
-  //let randstr = randndatum.toString(36);
+  let gameId = req.query.gameId;
+  console.log(`newgame query gameid is ${req.query.gameId}`);
+  if (gameId === undefined) {
+    // Make a number
+    let randnum = Math.round(Math.random()*1e9);
+    //let randstr = randndatum.toString(36);
 
-  // make some bits bits of randomness
-  let randarr = new Uint32Array(2);
-  crypto.randomFillSync(randarr);
-
-  // take those numbers and turn them into a base36 string array.
-  let gameId = randarr.reduce((acc, val) => acc + val.toString(36), '');
+    // make some bits bits of randomness
+    let randarr = new Uint32Array(2);
+    crypto.randomFillSync(randarr);
+    // take those numbers and turn them into a base36 string array.
+    gameId = randarr.reduce((acc, val) => acc + val.toString(36), '');
+  }
   console.log('New game randstr' + gameId);
   res.cookie("gameid", gameId, {
     maxAge: 1000*60*60, // milliseconds
