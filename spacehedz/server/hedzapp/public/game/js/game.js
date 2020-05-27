@@ -489,13 +489,17 @@ function webcamVideo(self, headCanvas) {
     // Send cutout if we got a new player before we got the video to open
     sendCutout(self);
     video.addEventListener('canplay', () => {
-        const canvas = faceapi.createCanvasFromMedia(video)
-        document.body.append(canvas)
-        const displaySize = {
-          width: video.width,
-          height: video.height
+        const showOverlay = false;
+        if (showOverlay) {
+          const canvas = faceapi.createCanvasFromMedia(video)
+          document.body.append(canvas)
+          const displaySize = {
+            width: video.width,
+            height: video.height
+          }
+          faceapi.matchDimensions(canvas, displaySize);
         }
-        faceapi.matchDimensions(canvas, displaySize)
+
         setInterval(async () => {
           //console.time('detections');
           const tstart = performance.now();
@@ -537,9 +541,7 @@ function webcamVideo(self, headCanvas) {
 
           self.statusText.setText(txt);
 
-
-
-          if (false) {
+          if (showOverlay) {
             const ctx = canvas.getContext('2d');
             ctx.clearRect(0, 0, canvas.width, canvas.height)
             faceapi.draw.drawDetections(canvas, resizedDetections)
@@ -553,8 +555,9 @@ function webcamVideo(self, headCanvas) {
               ctx.strokeRect(box.x, box.y, box.width, box.height);
             }
           }
-        }, 100)
+        }, 250)
 
+// start copying cutout
         window.requestAnimationFrame(copyCutout);
 
       }
