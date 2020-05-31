@@ -60,6 +60,7 @@ var cutout_video; // Video element containing cutout copied from webcam frame
 class RocketHead {
   constructor(scene, playerInfo, sprite)
   {
+    console.log(`Creating player ${playerInfo.playerId} ${sprite}`);
     //super(scene, playerInfo.x, playerInfo.y);
     this.scene = scene;
     scene.add.existing(this);
@@ -80,10 +81,15 @@ class RocketHead {
 
   set video(thevideo) {
     // Must be a canvas or video element
+    console.log(`Setting video for player ${this.playerInfo.playerId}`);
     this._video = thevideo;
     this.videoelement = this.scene.add.dom(this.playerInfo.x, this.playerInfo.y, thevideo);
     this.videoelement.width = 128;
     this.videoelement.height = 128;
+  }
+
+  get video() {
+    return this._video;
   }
 
   setRotation(rot) {
@@ -93,6 +99,7 @@ class RocketHead {
   }
 
   setPosition(x, y) {
+    console.log(`Setting position of player ${this.playerInfo.playerId} to [${x}, ${y}]`)
     this?.playerSprite.setPosition(x, y);
     this?.videoelement.setPosition(x, y);
     this?.playerBorder.setPosition(x, y);;
@@ -137,6 +144,7 @@ function create() {
   this.socket = io(this.socketNamespace);
   this.playerId = this.socket.id;
   this.players = this.add.group();
+  this.playerMap = {};
 
   this.blueScoreText = this.add.text(16, 16, '', {
     fontSize: '32px',
@@ -249,8 +257,9 @@ function create() {
 
 
 
+  // called when first connected to notify client of list of existing players
   this.socket.on('currentPlayers', function(players) {
-    console.log('Current players:' + Object.keys(players).length);
+    console.log(`Current players: + ${Object.keys(players).length} My socket ${self.socket.id}`);
     Object.keys(players).forEach(function(id) {
       if (players[id].playerId === self.socket.id) {
         displayPlayers(self, players[id], 'myheadvideo');
@@ -260,6 +269,7 @@ function create() {
     });
   });
 
+  // Called when already connected and a new player arrives
   this.socket.on('newPlayer', function(playerInfo) {
     console.log('New player'+playerInfo.playerId);
     displayPlayers(self, playerInfo, 'otherPlayer');
@@ -274,10 +284,12 @@ function create() {
   });
 
   this.socket.on('disconnect', function(playerId) {
+    console.log(`Player ${playerId} disconnected`);
     self.players.getChildren().forEach(function(player) {
       if (playerId === player.playerId) {
         player.parent.destroy();
       }
+      delete self.playerMap[playerId];
       if (playerId == self.chatPlayer) {
         self.chatPlayer = null;
         self.mediaSent = false;
@@ -388,17 +400,21 @@ function sendPlayerStatus(self) {
 
 
 function displayPlayers(self, playerInfo, sprite) {
-  const player = new RocketHead(self, playerInfo, sprite);
-  if (sprite === 'myheadvideo') {
-    player.video = self.cutout_video;
-  } else {
-    let video = document.createElement('video');
-    video.autoplay = true;
-    video.playsinline = true;
-    player.video = video;
+  if (!(playerInfo.playerId in self.playerMap)) {
+    const player = new RocketHead(self, playerInfo, sprite);
+    if (sprite === 'myheadvideo') {
+      player.video = self.cutout_video;
+    } else {
+      let video = document.createElement('video');
+      video.autoplay = true;
+      video.playsinline = true;
+      player.video = video;
+    }
+      //self.add.existing(player); - I think this already happens in the construtor?
+    self.players.add(player.playerSprite);
+    self.playerMap[playerInfo.playerId] = player;
   }
-    //self.add.existing(player); - I think this already happens in the construtor?
-  self.players.add(player.playerSprite);
+
 }
 
 function handleVideoOffer(self, webrtcdata) {
