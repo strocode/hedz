@@ -54,25 +54,17 @@ var screen_stream = null;
 var resizedDetections = [];
 var detections = [];
 var last_rect = {};
-var webcam_video;
-var cutout_video;
+var webcam_video; // Video element containing whole webcam frame
+var cutout_video; // Video element containing cutout copied from webcam frame
 
 class RocketHead {
   constructor(scene, playerInfo, sprite)
   {
     //super(scene, playerInfo.x, playerInfo.y);
+    this.scene = scene;
     scene.add.existing(this);
-    this.playerInfo = playerInfo
+
     this.playerSprite = scene.add.sprite(playerInfo.x, playerInfo.y, sprite).setOrigin(0.5, 0.5).setDisplaySize(128, 128);
-    const player = this;
-    const video = document.createElement('video');
-    video.height = 128;
-    video.width = 128;
-    video.playsinline = true;
-    video.autoplay = true;
-    const videoelement = scene.add.dom(player.x, player.y, video);
-    player.video = video;
-    player.videoelement = videoelement;
     this.playerBorder = scene.add.rectangle(playerInfo.x, playerInfo.y, 128+2, 128+2).setOrigin(0.5,0.5);
 
     if (playerInfo.team === 'blue') {
@@ -81,28 +73,35 @@ class RocketHead {
       this.playerBorder.setStrokeStyle(2,0xff0000,1);
     }
 
-    // hack because I'm too scared to use containers
-    // Used by the player updates to move things around
     this.playerSprite.playerId = playerInfo.playerId;
     this.playerSprite.parent = this;
+    this.playerInfo = playerInfo;
+  }
+
+  set video(thevideo) {
+    // Must be a canvas or video element
+    this._video = thevideo;
+    this.videoelement = this.scene.add.dom(this.playerInfo.x, this.playerInfo.y, thevideo);
+    this.videoelement.width = 128;
+    this.videoelement.height = 128;
   }
 
   setRotation(rot) {
-    this.playerSprite.setRotation(rot);
-    this.videoelement.setRotation(rot);
-    this.playerBorder.setRotation(rot);
+    this?.playerSprite.setRotation(rot);
+    this?.videoelement.setRotation(rot);
+    this?.playerBorder.setRotation(rot);
   }
 
   setPosition(x, y) {
-    this.playerSprite.setPosition(x, y);
-    this.videoelement.setPosition(x, y);
-    this.playerBorder.setPosition(x, y);;
+    this?.playerSprite.setPosition(x, y);
+    this?.videoelement.setPosition(x, y);
+    this?.playerBorder.setPosition(x, y);;
   }
 
   destroy() {
-    this.playerSprite.destroy();
-    this.videoelement.destroy();
-    this.playerBorder.destroy();
+    this?.playerSprite.destroy();
+    this?.videoelement.destroy();
+    this?.playerBorder.destroy();
   }
 }
 
@@ -156,55 +155,16 @@ function create() {
   this.smileMeter = this.add.rectangle(20,GAME_HEIGHT-20, 20, 100, 0x00ff00, 0.5).setOrigin(0.5,1.0);
   this.boostMeter = this.add.rectangle(50,GAME_HEIGHT-20, 20, 100, 0x00ff00, 0.5).setOrigin(0.5,1.0);
 
-    /*
-    var video = document.createElement('video');
-      video.height = 240;
-      video.width = 320;
-      video.playsinline = true;
-      video.autoplay = true;
-      self.videoelement = this.add.dom(250, 300, video);
-      */
   self.chatPlayer = null;
   self.mediaMaster = null;
   self.mediaSent = false;
 
   this.createThrustEmitter();
 
-  var myHeadVideoCanvas = this.textures.createCanvas('myheadvideo', 256, 256);
-  webcamVideo(self, myHeadVideoCanvas);
-
-  //
-  // document.getElementById('webcam-button')?.addEventListener('click', function() {
-  //   webcam_stream.getTracks().forEach(function(track) {
-  //     pc.addTrack(track, webcam_stream);
-  //   });
-  // });
-  //
-  // document.getElementById('screen-button')?.addEventListener('click', function() {
-  //   var constraints = {};
-  //   navigator.mediaDevices.getDisplayMedia(constraints).then(function(stream) {
-  //     addVideo(stream);
-  //     screen_stream = stream;
-  //     screen_stream.getTracks().forEach(function(track) {
-  //       pc.addTrack(track, screen_stream);
-  //     });
-  //   }, function(err) {
-  //     alert('Couldnt open screen' + err);
-  //   });
-  //
-  // });
-  //
-  // document.getElementById('audio-button')?.addEventListener('click', () => {
-  //   // add webcam audio track to streams
-  //   sendAudio(self);
-  // });
-  //
-  //
-  // document.getElementById('cutout-button')?.addEventListener('click', () => {
-  //   // Add cutout canvas to Track
-  //   sendCutout(self);
-  // });
-
+  self.cutout_video = document.createElement('canvas');
+  self.cutout_video.height = 128;
+  self.cutout_video.width = 128;
+  webcamVideo(self, self.cutout_video);
 
   pc.addEventListener('icecandidate', function(event) {
     if (self.chatPlayer !== null) {
@@ -293,7 +253,6 @@ function create() {
     console.log('Current players:' + Object.keys(players).length);
     Object.keys(players).forEach(function(id) {
       if (players[id].playerId === self.socket.id) {
-        // use 'ship' for a fixed image or 'myheadvideo' for a cutout of your head
         displayPlayers(self, players[id], 'myheadvideo');
       } else {
         displayPlayers(self, players[id], 'otherPlayer');
@@ -430,7 +389,15 @@ function sendPlayerStatus(self) {
 
 function displayPlayers(self, playerInfo, sprite) {
   const player = new RocketHead(self, playerInfo, sprite);
-  self.add.existing(player);
+  if (sprite === 'myheadvideo') {
+    player.video = self.cutout_video;
+  } else {
+    let video = document.createElement('video');
+    video.autoplay = true;
+    video.playsinline = true;
+    player.video = video;
+  }
+    //self.add.existing(player); - I think this already happens in the construtor?
   self.players.add(player.playerSprite);
 }
 
@@ -691,7 +658,7 @@ function copyCutout() {
     };
   }
   if (last_rect.sx != undefined) {
-    var ctx = cutcanvas.getContext();
+    var ctx = cutcanvas.getContext("2d");
     ctx.drawImage(webcam_video,
       last_rect.sx,
       last_rect.sy,
@@ -708,7 +675,7 @@ function copyCutout() {
     // texture. Note the phaser sources says this is slow too, so we should maybe
     // be doing something completely different
     //https://github.com/photonstorm/phaser/blob/v3.22.0/src/textures/CanvasTexture.js
-    cutcanvas.refresh();
+    //cutcanvas.refresh();
   }
   window.requestAnimationFrame(copyCutout);
 }
@@ -739,7 +706,7 @@ function sendCutout(self) {
   }
   if (cutout_video !== undefined) {
     console.log('Adding cutout video track to peer connection');
-    var stream = cutout_video.canvas.captureStream(30);
+    var stream = cutout_video.captureStream(30);
     var track = stream.getVideoTracks()[0];
     pc.addTrack(track, stream);
     self.cutoutSent = true;
