@@ -299,28 +299,30 @@ function create() {
   });
 
   this.socket.on('playerUpdates', function(players) {
+    console.log(`Player updates ${Object.keys(players).length}`)
     Object.keys(players).forEach(function(id) {
-      self.players.getChildren().forEach(function(player) {
-        const pli = players[id];
-        if (players[id].playerId === player.playerId) {
-          player.parent.setRotation(pli.rotation);
-          player.parent.setPosition(pli.x, pli.y);
-          if (pli.thrusting) {
-            self.thrust.setPosition(pli.x, pli.y);
-            const deg = Phaser.Math.RadToDeg(pli.rotation);
-            const thrustCone = pli.boostLevel === 1 ? 20 : 10;
-            self.thrust.setAngle({
-              min:deg-thrustCone+90,
-              max:deg+thrustCone+90
-            });
-            self.thrust.setSpeed(pli.boostLevel === 1 ? 1000 : 500);
-            //self.thrust.setLifeSpan(pli.boostLevel === 1 ? 250 : 100);
-            self.thrust.emitParticle(32);
-          }
+      const player = self.playerMap[id];
+      if (player === undefined) {
+        console.log(`No player with ID=${id}`);
+        return;
+      }
+      const pli = players[id]; // player info
+      player.setRotation(pli.rotation);
+      player.setPosition(pli.x, pli.y);
+      if (pli.thrusting) {
+        self.thrust.setPosition(pli.x, pli.y);
+        const deg = Phaser.Math.RadToDeg(pli.rotation);
+        const thrustCone = pli.boostLevel === 1 ? 20 : 10;
+        self.thrust.setAngle({
+          min:deg-thrustCone+90,
+          max:deg+thrustCone+90
+        });
+        self.thrust.setSpeed(pli.boostLevel === 1 ? 1000 : 500);
+        //self.thrust.setLifeSpan(pli.boostLevel === 1 ? 250 : 100);
+        self.thrust.emitParticle(32);
+      }
+      setChatPlayer(self, player);
 
-        }
-        setChatPlayer(self, player);
-      });
     });
   });
 
