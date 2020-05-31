@@ -701,7 +701,14 @@ function copyCutout() {
       last_rect.dy,
       last_rect.dw,
       last_rect.dh);
-    cutcanvas.update();
+      // update() is really slow. because it calls getImageData()
+    //cutcanvas.update();
+
+    // Let's try this one - which doesnt call getImageData but does refres the
+    // texture. Note the phaser sources says this is slow too, so we should maybe
+    // be doing something completely different
+    //https://github.com/photonstorm/phaser/blob/v3.22.0/src/textures/CanvasTexture.js
+    cutcanvas.refresh();
   }
   window.requestAnimationFrame(copyCutout);
 }
