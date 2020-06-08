@@ -58,7 +58,7 @@ function create() {
     // create a new player and add it to our players object
     const nplayers = Object.keys(players).length;
     var team = (nplayers + 1) % 2 == 0 ? 'red' : 'blue'
-    console.log('New user team=' + team + ' nplayers now=' + nplayers);
+    console.log(`${self.gameId}: New user team=${team} nplayers before= ${nplayers}`);
 
     players[socket.id] = {
       rotation: 0,
@@ -94,10 +94,14 @@ function create() {
       removePlayer(self, socket.id);
       // remove this player from our players object
       delete players[socket.id];
-      console.log(`user disconnected. Got ${players.length} left`);
+      console.log(`${this.gameId}: user disconnected. Got ${players.length} left`);
 
       // emit a message to all players to remove this player
       io.emit('disconnect', socket.id);
+
+      if (players.length == 0) {
+          window.onFinished();
+      }
     });
     // when a player moves, update the player data
     socket.on('playerInput', function(inputData) {
@@ -106,7 +110,7 @@ function create() {
 
     // send webrtc chat data to the requested player
     socket.on('webrtc', function(webrtcdata) {
-      //console.log('Got webrtc' + JSON.stringify(webrtcdata));
+      console.log('Got webrtc' + JSON.stringify(webrtcdata));
       var playerId = webrtcdata.playerId;
       socket.broadcast.to(playerId).emit('webrtc', webrtcdata);
     });
@@ -176,4 +180,4 @@ function removePlayer(self, playerId) {
 }
 
 const game = new Phaser.Game(config);
-window.gameLoaded();
+window.gameLoaded(game);

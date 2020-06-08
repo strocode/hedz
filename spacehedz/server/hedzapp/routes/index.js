@@ -7,6 +7,8 @@ const DatauriParser = require('datauri/parser');
 const parser = new DatauriParser();
 const { JSDOM } = jsdom;
 
+games = {};
+
 
 /* GET home page. */
 router.get('/', function(req, res, next) {
@@ -32,17 +34,26 @@ router.get('/newgame', async function(req, res, next) {
   res.cookie("gameid", gameId, {
     maxAge: 1000*60*60, // milliseconds
   });
-  const io = req.app.get('socketio');
-  let dom = await setupAuthoritativePhaser(gameId, io);
+
   res.redirect(`/game/${gameId}`);
 });
 
-router.get('/game/:gameId', function(req, res, next) {
+
+router.get('/game/:gameId', async function(req, res, next) {
     const gameId = req.params.gameId;
     console.log('GameID is ' + gameId);
 
+    let game;
+    if (! (gameId in games)) {
+      const io = req.app.get('socketio');
+      let game = await setupAuthoritativePhaser(gameId, io);
+      games[gameId] = game;
+    }
+    game = games[gameId];
+
     // send game HTml file to client
     res.sendFile(path.join(__dirname, '../public/game/rockethedz.html'));
+
 });
 
 function setupAuthoritativePhaser(gameId, io) {
@@ -67,8 +78,18 @@ function setupAuthoritativePhaser(gameId, io) {
       dom.window.URL.revokeObjectURL = (objectURL) => {};
       dom.window.io = io.of(socketNamespace);
       dom.window.gameId = gameId;
-      dom.window.gameLoaded = () => {
-        resolve(dom);
+      dom.window.onFinished = () => {
+        console.log('Game ${gameid} finished');
+        dom.window.close();
+        delete games[gameId];
+      }
+
+      dom.window.gameLoaded = (game) => {
+        let gameobj = {
+          dom: dom,
+          game: game
+        }
+        resolve(gameobj);
       };
     }).catch((error) => {
       reject(Error(error.message));

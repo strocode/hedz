@@ -92,6 +92,10 @@ class RocketHead {
     return this._video;
   }
 
+  get playerId() {
+    return this.playerInfo.playerId;
+  }
+
   setRotation(rot) {
     this?.playerSprite.setRotation(rot);
     this?.videoelement.setRotation(rot);
@@ -99,7 +103,7 @@ class RocketHead {
   }
 
   setPosition(x, y) {
-    console.log(`Setting position of player ${this.playerInfo.playerId} to [${x}, ${y}]`)
+    //console.log(`Setting position of player ${this.playerInfo.playerId} to [${x}, ${y}]`)
     this?.playerSprite.setPosition(x, y);
     this?.videoelement.setPosition(x, y);
     this?.playerBorder.setPosition(x, y);;
@@ -141,10 +145,17 @@ function create() {
   const url_bits = window.location.href.split('/');
   this.gameId = url_bits[url_bits.length - 1];
   this.socketNamespace = '/rockethedz/' + this.gameId
-  this.socket = io(this.socketNamespace);
-  this.playerId = this.socket.id;
   this.players = this.add.group();
   this.playerMap = {};
+  this.chatPlayer = null;
+  self.mediaMaster = null;
+  self.mediaSent = false;
+
+// TODO: Fix race condition here. running io() will fire a connection event
+// on teh server, which will triger a bunch of messages to come back to us,
+// but we haven't yet set our own listeners
+  this.socket = io(this.socketNamespace);
+  this.playerId = this.socket.id;
 
   this.blueScoreText = this.add.text(16, 16, '', {
     fontSize: '32px',
@@ -163,9 +174,6 @@ function create() {
   this.smileMeter = this.add.rectangle(20,GAME_HEIGHT-20, 20, 100, 0x00ff00, 0.5).setOrigin(0.5,1.0);
   this.boostMeter = this.add.rectangle(50,GAME_HEIGHT-20, 20, 100, 0x00ff00, 0.5).setOrigin(0.5,1.0);
 
-  self.chatPlayer = null;
-  self.mediaMaster = null;
-  self.mediaSent = false;
 
   this.createThrustEmitter();
 
@@ -175,7 +183,7 @@ function create() {
   webcamVideo(self, self.cutout_video);
 
   pc.addEventListener('icecandidate', function(event) {
-    if (self.chatPlayer !== null) {
+    if (self.chatPlayer !== null && self.chatPlayer !== undefined) {
       if (event.candidate) {
         self.socket.emit('webrtc', {
           name: self.socket.id,
@@ -194,7 +202,7 @@ function create() {
     pc.createOffer().then(function(offer) {
       return pc.setLocalDescription(offer);
     }).then(function() {
-      if (self.chatPlayer !== null) {
+      if (self.chatPlayer !== null && self.chatPlayer !== undefined) {
         self.socket.emit('webrtc', {
           name: self.socket.id,
           playerId: self.chatPlayer,
@@ -290,7 +298,7 @@ function create() {
         player.parent.destroy();
       }
       delete self.playerMap[playerId];
-      if (playerId == self.chatPlayer) {
+      if (playerId == self.chatPlayer.playerId) {
         self.chatPlayer = null;
         self.mediaSent = false;
         // TODO: Send video to another player?
@@ -299,7 +307,7 @@ function create() {
   });
 
   this.socket.on('playerUpdates', function(players) {
-    console.log(`Player updates ${Object.keys(players).length}`)
+    //console.log(`Player updates ${Object.keys(players).length}`)
     Object.keys(players).forEach(function(id) {
       const player = self.playerMap[id];
       if (player === undefined) {
@@ -719,8 +727,9 @@ function sendCutout(self) {
   if (self.cutoutSent) {
     return;
   }
-  if (self.chatPlayer == undefined) {
-    console.log('Requested cutout but now chat player');
+  if (self.chatPlayer === null || self.chatPlayer === undefined) {
+    console.log('Requested cutout but there is no chat player!');
+    return;
   }
   if (cutout_video !== undefined) {
     console.log('Adding cutout video track to peer connection');
