@@ -94,12 +94,13 @@ function create() {
       removePlayer(self, socket.id);
       // remove this player from our players object
       delete players[socket.id];
-      console.log(`${this.gameId}: user disconnected. Got ${players.length} left`);
+      console.log(`${self.gameId}: user disconnected. Got ${self.players.getLength()} left`);
 
       // emit a message to all players to remove this player
       io.emit('disconnect', socket.id);
 
-      if (players.length == 0) {
+      // tell outside world wehave no more players
+      if (self.players.getLength() == 0) {
           window.onFinished();
       }
     });
