@@ -54,26 +54,25 @@
   </script>
 
   <div id="videos"></div>
+  <a href="/">Play a new game</a>
+  <a href="https://forms.gle/yVj29JB3WKBfBrM89">Send Feedback</a>
+
   <div id="share-buttons">
     <h1>Share this game with a friend so they can play with you!</h1>
 
-    <a href="/">Play a new game</a>
-    <button class="email" title="Email a friend" href="#" onclick="javascript:window.location='mailto:?subject=Interesting information&body=I thought you might find this information interesting: ' + window.location;">
-      <i class="fas fa-envelope"></i>
-    </button>
+    <div class="btn-group">
+      <a class="btn" href="#"><i class="fas fa-envelope"></i></a>
     <!-- telegram buttons https://core.telegram.org/widgets/share#custom-buttons -->
-    <button href="https://t.me/share/url?url={url}&text=Play rockethedz with me!">
+    <a class="btn" href="https://t.me/share/url?url={url}&text=Play+rockethedz+with+me!">
       <i class="fas fa-paper-plane"></i>
-      <button>
-        <button href="https://wa.me/?text=Play rockethedz with me!">
-          <i class="fas fa-whatsapp"></i>
-          <button>
-            <button href="sms://?Play rockethedz with me!">
-              <i class="fas fa-sms">
-            </button>
-
+    </a>
+    <a class="btn" href="https://wa.me/?text=Play+rockethedz+with+me!">
+      <i class="fas fa-whatsapp"></i>
+    </a>
+    <a class="btn"  href="sms://?Play rockethedz with me!">
+      <i class="fas fa-sms"></i>
+    </a>
   </div>
-  <a href="https://forms.gle/yVj29JB3WKBfBrM89">Send Feedback</a>
   <div id="game-div"></div>
 
   <div class="option">
