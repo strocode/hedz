@@ -31,6 +31,7 @@ function create() {
   const self = this;
   this.players = this.physics.add.group();
   this.gameId = document.gameId;
+  console.log(`creating game ${this.gameID}`);
 
   this.scores = {
     blue: 0,
@@ -111,7 +112,7 @@ function create() {
 
     // send webrtc chat data to the requested player
     socket.on('webrtc', function(webrtcdata) {
-      console.log('Got webrtc' + JSON.stringify(webrtcdata));
+      console.log('Got webrtc: %O', webrtcdata);
       var playerId = webrtcdata.playerId;
       socket.broadcast.to(playerId).emit('webrtc', webrtcdata);
     });
