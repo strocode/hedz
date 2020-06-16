@@ -1,5 +1,145 @@
 'use strict'
 
+function createMyPeerConnection() {
+  var config = {
+    sdpSemantics: 'unified-plan'
+  };
+
+  if (document.getElementById('use-stun').checked) {
+    config.iceServers = [{
+      urls: ['stun:stun.l.google.com:19302']
+    }];
+  }
+
+  pc = new RTCPeerConnection(config);
+
+  // register some listeners to help debugging
+  pc.addEventListener('icegatheringstatechange', function() {
+    iceGatheringLog.textContent += ' -> ' + pc.iceGatheringState;
+  }, false);
+  iceGatheringLog.textContent = pc.iceGatheringState;
+
+  pc.addEventListener('iceconnectionstatechange', function() {
+    iceConnectionLog.textContent += ' -> ' + pc.iceConnectionState;
+  }, false);
+  iceConnectionLog.textContent = pc.iceConnectionState;
+
+  pc.addEventListener('signalingstatechange', function() {
+    signalingLog.textContent += ' -> ' + pc.signalingState;
+  }, false);
+  signalingLog.textContent = pc.signalingState;
+
+
+  return pc;
+}
+
+class WebRTCConnection {
+  // https://blog.mozilla.org/webrtc/perfect-negotiation-in-webrtc/
+  // https://developer.mozilla.org/en-US/docs/Web/API/WebRTC_API/Perfect_negotiation
+  constructor(socket) {
+    this.socket = socket;
+    this.isPolite = false;
+    this.makingOffer = false;
+    this.ignoreOffer = false;
+    this.remoteId = null;
+    this.pc = createMyPeerConnection();
+    pc = this.pc;
+    const signaler = this;
+    pc.onnegotiationneeded = async () => {
+      try {
+        this.makingOffer = true;
+        await pc.setLocalDescription();
+        signaler.send({
+          description: pc.localDescription
+        });
+      } catch (err) {
+        console.error(err);
+      } finally {
+        this.makingOffer = false;
+      }
+    };
+
+    pc.onicecandidate = ({
+      candidate
+    }) => signaler.send({
+      candidate
+    });
+
+    pc.oniceconnectionstatechange = () => {
+      if (pc.iceConnectionState === "failed") {
+        pc.restartIce();
+      }
+    };
+
+    this.socket.on('webrtc', async (webrtcdata) => {
+      if (webrtcdata.playerId === this.socket.id) { // if it's addressed to me
+        await this.onmessage(webrtcdata);
+      }
+    });
+  }
+
+  set bePolite(isPolite) {
+    this.polite = isPolite;
+  }
+
+  set remoteSocketId(remoteId) {
+    this.remoteId = remoteId;
+  }
+
+  close = () => {
+    this.pc.close();
+  }
+
+  send = (msg) => {
+    if (this.remoteId != null) {
+      this.socket.emit('webrtc', {
+        name: this.socket.id,
+        playerId: this.remoteId,
+        msg: msg
+      });
+    } else {
+      console.log('Requested WebRTCSend but no remoted ID');
+    }
+  }
+
+  onmessage = async ({
+    msg: {
+      description,
+      candidate
+    }
+  }) => {
+    try {
+      if (description) {
+        const offerCollision = (description.type == "offer") &&
+          (this.makingOffer || pc.signalingState != "stable");
+
+        this.ignoreOffer = !this.polite && offerCollision;
+        if (this.ignoreOffer) {
+          return;
+        }
+
+        await pc.setRemoteDescription(description);
+        if (description.type == "offer") {
+          await pc.setLocalDescription();
+          this.send({
+            description: pc.localDescription
+          })
+        }
+      } else if (candidate) {
+        try {
+          await pc.addIceCandidate(candidate);
+        } catch (err) {
+          if (!this.ignoreOffer) {
+            throw err;
+          }
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }
+}
+
 const GAME_WIDTH = 800;
 const GAME_HEIGHT = 600;
 const MAX_SMILE_HEIGHT = 300;
@@ -14,36 +154,36 @@ var config = {
     createContainer: true
   },
   physics: {
-        default: 'impact',
-        impact: {
-            setBounds: {
-                x: 0,
-                y: 0,
-                width: GAME_WIDTH,
-                height: GAME_HEIGHT,
-                thickness: 32
-            }
-        }
-    },
+    default: 'impact',
+    impact: {
+      setBounds: {
+        x: 0,
+        y: 0,
+        width: GAME_WIDTH,
+        height: GAME_HEIGHT,
+        thickness: 32
+      }
+    }
+  },
   scene: {
     preload: preload,
     create: create,
     update: update,
     extend: {
-            minimap: null,
-            player: null,
-            cursors: null,
-            thrust: null,
-            flares: null,
-            bullets: null,
-            lastFired: 0,
-            text: null,
-            //createBulletEmitter: createBulletEmitter,
-            //createStarfield: createStarfield,
-            //createLandscape: createLandscape,
-            //createAliens: createAliens,
-            createThrustEmitter: createThrustEmitter
-        },
+      minimap: null,
+      player: null,
+      cursors: null,
+      thrust: null,
+      flares: null,
+      bullets: null,
+      lastFired: 0,
+      text: null,
+      //createBulletEmitter: createBulletEmitter,
+      //createStarfield: createStarfield,
+      //createLandscape: createLandscape,
+      //createAliens: createAliens,
+      createThrustEmitter: createThrustEmitter
+    },
   }
 };
 
@@ -58,20 +198,19 @@ var webcam_video; // Video element containing whole webcam frame
 var cutout_video; // Video element containing cutout copied from webcam frame
 
 class RocketHead {
-  constructor(scene, playerInfo, sprite)
-  {
+  constructor(scene, playerInfo, sprite) {
     console.log(`Creating player ${playerInfo.playerId} ${sprite}`);
     //super(scene, playerInfo.x, playerInfo.y);
     this.scene = scene;
     scene.add.existing(this);
 
     this.playerSprite = scene.add.sprite(playerInfo.x, playerInfo.y, sprite).setOrigin(0.5, 0.5).setDisplaySize(128, 128);
-    this.playerBorder = scene.add.rectangle(playerInfo.x, playerInfo.y, 128+2, 128+2).setOrigin(0.5,0.5);
+    this.playerBorder = scene.add.rectangle(playerInfo.x, playerInfo.y, 128 + 2, 128 + 2).setOrigin(0.5, 0.5);
 
     if (playerInfo.team === 'blue') {
-      this.playerBorder.setStrokeStyle(2,0x0000ff,1);
+      this.playerBorder.setStrokeStyle(2, 0x0000ff, 1);
     } else {
-      this.playerBorder.setStrokeStyle(2,0xff0000,1);
+      this.playerBorder.setStrokeStyle(2, 0xff0000, 1);
     }
 
     this.playerSprite.playerId = playerInfo.playerId;
@@ -151,11 +290,12 @@ function create() {
   self.mediaMaster = null;
   self.mediaSent = false;
 
-// TODO: Fix race condition here. running io() will fire a connection event
-// on teh server, which will triger a bunch of messages to come back to us,
-// but we haven't yet set our own listeners
+  // TODO: Fix race condition here. running io() will fire a connection event
+  // on teh server, which will triger a bunch of messages to come back to us,
+  // but we haven't yet set our own listeners
   this.socket = io(this.socketNamespace);
   this.playerId = this.socket.id;
+  this.webrtcConnection = new WebRTCConnection(this.socket);
 
   this.blueScoreText = this.add.text(16, 16, '', {
     fontSize: '32px',
@@ -166,13 +306,13 @@ function create() {
     fill: '#FF0000'
   });
 
-  this.statusText = this.add.text(16, 600-16-4, '', {
-    fontSize:'16px',
-    fill:'#FF0000'
+  this.statusText = this.add.text(16, 600 - 16 - 4, '', {
+    fontSize: '16px',
+    fill: '#FF0000'
   });
 
-  this.smileMeter = this.add.rectangle(20,GAME_HEIGHT-20, 20, 100, 0x00ff00, 0.5).setOrigin(0.5,1.0);
-  this.boostMeter = this.add.rectangle(50,GAME_HEIGHT-20, 20, 100, 0x00ff00, 0.5).setOrigin(0.5,1.0);
+  this.smileMeter = this.add.rectangle(20, GAME_HEIGHT - 20, 20, 100, 0x00ff00, 0.5).setOrigin(0.5, 1.0);
+  this.boostMeter = this.add.rectangle(50, GAME_HEIGHT - 20, 20, 100, 0x00ff00, 0.5).setOrigin(0.5, 1.0);
 
 
   this.createThrustEmitter();
@@ -182,42 +322,7 @@ function create() {
   self.cutout_video.width = 128;
   webcamVideo(self, self.cutout_video);
 
-  pc.addEventListener('icecandidate', function(event) {
-    if (self.chatPlayer !== null && self.chatPlayer !== undefined) {
-      if (event.candidate) {
-        self.socket.emit('webrtc', {
-          name: self.socket.id,
-          playerId: self.chatPlayer,
-          type: 'new-ice-candidate',
-          candidate: event.candidate
-        });
-      } else {
-        console.log('All candidates have been sent!');
-      }
-    }
-
-  });
-
-  pc.addEventListener('negotiationneeded', function(evt) {
-    pc.createOffer().then(function(offer) {
-      return pc.setLocalDescription(offer);
-    }).then(function() {
-      if (self.chatPlayer !== null && self.chatPlayer !== undefined) {
-        self.socket.emit('webrtc', {
-          name: self.socket.id,
-          playerId: self.chatPlayer,
-          type: 'video-offer',
-          sdp: pc.localDescription
-        });
-      }
-    }).catch(function(e) {
-      alert(e);
-    });
-  });
-
-  pc.addEventListener('removetrack', function(evt) {
-    console.log('Removetrack called');
-  });
+  let pc = this.webrtcConnection.pc;
 
   // connect audio / video
   pc.addEventListener('track', evt => {
@@ -243,27 +348,9 @@ function create() {
     }
   });
 
-  this.socket.on('webrtc', function(webrtcdata) {
-    console.log('Got webrtc type' + webrtcdata.type);
-    switch (webrtcdata.type) {
-      case 'video-offer':
-        handleVideoOffer(self, webrtcdata);
-        break;
-
-      case 'video-answer':
-        handleVideoAnswer(self, webrtcdata);
-        break;
-
-      case 'new-ice-candidate':
-        handleNewIceCandidate(self, webrtcdata);
-        break;
-
-      default:
-        console.log('Unknown type' + webrtcdata.type);
-    }
+  pc.addEventListener('removetrack', function(evt) {
+    console.log('Removetrack called');
   });
-
-
 
   // called when first connected to notify client of list of existing players
   this.socket.on('currentPlayers', function(players) {
@@ -279,7 +366,7 @@ function create() {
 
   // Called when already connected and a new player arrives
   this.socket.on('newPlayer', function(playerInfo) {
-    console.log('New player'+playerInfo.playerId);
+    console.log('New player' + playerInfo.playerId);
     displayPlayers(self, playerInfo, 'otherPlayer');
     setChatPlayer(self, playerInfo);
     // send send our media to the new player. The new player doesn't
@@ -288,6 +375,7 @@ function create() {
 
     // We're the media mediaMaster
     self.mediaMaster = true;
+    self.webrtcConnection.bePolite = true;
     sendMedia(self);
   });
 
@@ -301,6 +389,7 @@ function create() {
       if (playerId == self.chatPlayer.playerId) {
         self.chatPlayer = null;
         self.mediaSent = false;
+        self.webrtcConnection.close();
         // TODO: Send video to another player?
       }
     });
@@ -322,8 +411,8 @@ function create() {
         const deg = Phaser.Math.RadToDeg(pli.rotation);
         const thrustCone = pli.boostLevel === 1 ? 20 : 10;
         self.thrust.setAngle({
-          min:deg-thrustCone+90,
-          max:deg+thrustCone+90
+          min: deg - thrustCone + 90,
+          max: deg + thrustCone + 90
         });
         self.thrust.setSpeed(pli.boostLevel === 1 ? 1000 : 500);
         //self.thrust.setLifeSpan(pli.boostLevel === 1 ? 250 : 100);
@@ -356,18 +445,20 @@ function create() {
 function setChatPlayer(self, player) {
   // send video to the first player we see that isnt us
   if (player.playerId !== self.socket.id && self.chatPlayer === null) {
-      self.chatPlayer = player.playerId;
-      console.log('Set chat player to ' + self.chatPlayer);
+    self.chatPlayer = player.playerId;
+    self.webrtcConnection.remoteSocketId = player.playerId;
+    console.log('Set chat player to ' + self.chatPlayer);
 
-    }
   }
-  function sendMedia(self) {
-    // send video to the first player we see that isnt us
-    if (self.chatPlayer !== null && ! self.mediaSent) {
-      self.mediaSent = true;
-      sendAudio(self);
-      sendCutout(self);
-    }
+}
+
+function sendMedia(self) {
+  // send video to the first player we see that isnt us
+  if (self.chatPlayer !== null && !self.mediaSent) {
+    self.mediaSent = true;
+    sendAudio(self);
+    sendCutout(self);
+  }
 
 }
 
@@ -399,13 +490,13 @@ function update() {
 }
 
 function sendPlayerStatus(self) {
-    self.socket.emit('playerInput', {
-      left: self.leftKeyPressed,
-      right: self.rightKeyPressed,
-      up: self.upKeyPressed,
-      smileLevel: self.smileMeter.displayHeight / MAX_SMILE_HEIGHT,
-      boostLevel: self.boostMeter.displayHeight / MAX_SMILE_HEIGHT,
-    });
+  self.socket.emit('playerInput', {
+    left: self.leftKeyPressed,
+    right: self.rightKeyPressed,
+    up: self.upKeyPressed,
+    smileLevel: self.smileMeter.displayHeight / MAX_SMILE_HEIGHT,
+    boostLevel: self.boostMeter.displayHeight / MAX_SMILE_HEIGHT,
+  });
 }
 
 
@@ -420,45 +511,12 @@ function displayPlayers(self, playerInfo, sprite) {
       video.playsinline = true;
       player.video = video;
     }
-      //self.add.existing(player); - I think this already happens in the construtor?
+    //self.add.existing(player); - I think this already happens in the construtor?
     self.players.add(player.playerSprite);
     self.playerMap[playerInfo.playerId] = player;
   }
 
 }
-
-function handleVideoOffer(self, webrtcdata) {
-
-  pc.setRemoteDescription(webrtcdata.sdp).then(function() {
-    return pc.createAnswer();
-  }).then(function(answer) {
-    return pc.setLocalDescription(answer);
-  }).then(function() {
-    var msg = {
-      name: webrtcdata.playerId,
-      playerId: webrtcdata.name,
-      type: 'video-answer',
-      sdp: pc.localDescription
-    };
-    console.log('Sending video answer' + JSON.stringify(msg));
-    self.socket.emit('webrtc', msg);
-  });
-}
-
-function handleVideoAnswer(self, webrtcdata) {
-  pc.setRemoteDescription(webrtcdata.sdp).then(function() {
-    console.log('got video answer!');
-  });
-
-
-}
-
-function handleNewIceCandidate(self, webrtcdata) {
-  pc.addIceCandidate(webrtcdata.candidate).then(function() {
-    console.log('Ice candidate added sucessfully!');
-  });
-}
-
 
 function webcamVideo(self, headCanvas) {
   var constraints = {
@@ -509,7 +567,7 @@ function webcamVideo(self, headCanvas) {
           if (detections.length === 1) {
             const smileValue = detections[0].expressions.happy;
             const maxh = MAX_SMILE_HEIGHT;
-            self.smileMeter.displayHeight = maxh*smileValue;
+            self.smileMeter.displayHeight = maxh * smileValue;
             let h = self.boostMeter.displayHeight;
             if (smileValue >= 0.8) {
               h += 10;
@@ -526,7 +584,7 @@ function webcamVideo(self, headCanvas) {
 
             self.boostMeter.displayHeight = h;
             if (h == MAX_SMILE_HEIGHT) {
-                startBoost(self);
+              startBoost(self);
             }
 
             txt = txt + ` smile=${smileValue}`
@@ -550,7 +608,7 @@ function webcamVideo(self, headCanvas) {
           }
         }, 250)
 
-// start copying cutout
+        // start copying cutout
         window.requestAnimationFrame(copyCutout);
 
       }
@@ -585,39 +643,6 @@ function addVideo(stream) {
   video_div.appendChild(v)
   //v.play(); // cant do unless interacted first
   return v;
-}
-
-function createMyPeerConnection() {
-  var config = {
-    sdpSemantics: 'unified-plan'
-  };
-
-  if (document.getElementById('use-stun').checked) {
-    config.iceServers = [{
-      urls: ['stun:stun.l.google.com:19302']
-    }];
-  }
-
-  pc = new RTCPeerConnection(config);
-
-  // register some listeners to help debugging
-  pc.addEventListener('icegatheringstatechange', function() {
-    iceGatheringLog.textContent += ' -> ' + pc.iceGatheringState;
-  }, false);
-  iceGatheringLog.textContent = pc.iceGatheringState;
-
-  pc.addEventListener('iceconnectionstatechange', function() {
-    iceConnectionLog.textContent += ' -> ' + pc.iceConnectionState;
-  }, false);
-  iceConnectionLog.textContent = pc.iceConnectionState;
-
-  pc.addEventListener('signalingstatechange', function() {
-    signalingLog.textContent += ' -> ' + pc.signalingState;
-  }, false);
-  signalingLog.textContent = pc.signalingState;
-
-
-  return pc;
 }
 
 function copyCutout() {
@@ -694,7 +719,7 @@ function copyCutout() {
       last_rect.dy,
       last_rect.dw,
       last_rect.dh);
-      // update() is really slow. because it calls getImageData()
+    // update() is really slow. because it calls getImageData()
     //cutcanvas.update();
 
     // Let's try this one - which doesnt call getImageData but does refres the
@@ -746,15 +771,20 @@ function startBoost(self) {
   sendPlayerStatus(self);
 }
 
-function createThrustEmitter ()
-{
-    this.thrust = this.add.particles('jets').createEmitter({
-        x: 1600,
-        y: 200,
-        angle: { min: 160, max: 200 },
-        scale: { start: 0.5, end: 0 },
-        lifespan: 250,
-        blendMode: 'ADD',
-        on: false
-    });
+function createThrustEmitter() {
+  this.thrust = this.add.particles('jets').createEmitter({
+    x: 1600,
+    y: 200,
+    angle: {
+      min: 160,
+      max: 200
+    },
+    scale: {
+      start: 0.5,
+      end: 0
+    },
+    lifespan: 250,
+    blendMode: 'ADD',
+    on: false
+  });
 }
