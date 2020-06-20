@@ -57,7 +57,7 @@ function create() {
 
   io.on('connection', function(socket) {
     // create a new player and add it to our players object
-    const playersByTeam = Object.values(players).reduce((acc, player) => {acc[player.team] += 1}, {'red':0,'blue':0});
+    const playersByTeam = Object.values(players).reduce((acc, player) => {acc[player.team] += 1; return acc;}, {'red':0,'blue':0});
     const nplayers = Object.values(players).length;
     var team = playersByTeam['red'] < playersByTeam['blue'] ? 'red':'blue';
     console.log(self.gameId, 'New user team=', team, 'nplayers before', nplayers, 'by team', playersByTeam);
