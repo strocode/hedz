@@ -53,7 +53,7 @@ class WebRTCConnection {
     this.makingOffer = false;
     this.ignoreOffer = false;
     this.remoteId = null;
-    this.tracksToAdd = [...this.allTracks];
+    this.tracksToAdd = []; //[...this.allTracks];
     this.pc = createMyPeerConnection();
     pc = this.pc;
     const signaler = this;
@@ -602,7 +602,7 @@ function webcamVideo(self, headCanvas) {
           }
           faceapi.matchDimensions(canvas, displaySize);
         }
-
+        let max_det_time = 0;
         setInterval(async () => {
           //console.time('detections');
           const tstart = performance.now();
@@ -612,7 +612,8 @@ function webcamVideo(self, headCanvas) {
           detections.tend = tend;
           const tdiff = Math.round(tend - tstart);
           const ndet = detections.length;
-          let txt = `Detection time ${tdiff}ms ndet=${ndet}`
+          max_det_time = tdiff > max_det_time ? tdiff : max_det_time;
+          let txt = `Detection time ${tdiff}ms max ${max_det_time} ndet=${ndet}`
           //console.timeEnd('detections');
           //resizedDetections = faceapi.resizeResults(detections, displaySize)
 
