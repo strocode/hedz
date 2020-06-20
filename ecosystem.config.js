@@ -19,7 +19,7 @@ module.exports = {
       repo: 'git@github.com:strocode/hedz.git',
       path: '/home/keith/RocketHedz/',
       'pre-deploy-local': '',
-      'post-deploy': 'npm install && npm run build && pm2 reload ecosystem.config.js --env production',
+      'post-deploy': 'npm install && npm run build && pushd source/public/game && npm install && popd && pm2 reload ecosystem.config.js --env production',
       'pre-setup': ''
     }
   }
