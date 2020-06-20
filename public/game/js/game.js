@@ -38,10 +38,22 @@ class WebRTCConnection {
   // https://developer.mozilla.org/en-US/docs/Web/API/WebRTC_API/Perfect_negotiation
   constructor(socket) {
     this.socket = socket;
+    this.listeners = {};
+    this.allTracks = [];
+    this.socket.on('webrtc', async (webrtcdata) => {
+      if (webrtcdata.playerId === this.socket.id) { // if it's addressed to me
+        await this.onmessage(webrtcdata);
+      }
+    });
+    this.setupPeerConnection();
+  }
+
+  setupPeerConnection = () => {
     this.isPolite = false;
     this.makingOffer = false;
     this.ignoreOffer = false;
     this.remoteId = null;
+    this.tracksToAdd = [...this.allTracks];
     this.pc = createMyPeerConnection();
     pc = this.pc;
     const signaler = this;
@@ -69,25 +81,62 @@ class WebRTCConnection {
       if (pc.iceConnectionState === "failed") {
         pc.restartIce();
       }
+
+      this.sendTracksIfPossible();
     };
 
-    this.socket.on('webrtc', async (webrtcdata) => {
-      if (webrtcdata.playerId === this.socket.id) { // if it's addressed to me
-        await this.onmessage(webrtcdata);
+    for (const evtname of Object.keys(this.listeners)) {
+      for(const func of this.listeners[evtname]) {
+        this.pc.addEventListener(evtname, func);
       }
-    });
+    }
+
   }
 
-  set bePolite(isPolite) {
-    this.polite = isPolite;
+  addEventListener = (evtname, func) => {
+    this.pc.addEventListener(evtname, func);
+
+    if (!(evtname in Object.keys(this.listeners))) {
+      this.listeners[evtname] = [];
+    }
+    this.listeners[evtname].push(func);
+  }
+
+  addTrack = (track, stream) => {
+    this.tracksToAdd.unshift({track, stream});
+    this.allTracks.unshift({track, stream});
+    this.sendTracksIfPossible();
+  }
+
+  sendTracksIfPossible = () => {
+      const msg = `
+      Attempting to send tracks signallingState: ${this.pc.signalingState}
+      iceState: ${this.pc.iceConnectionState}
+      nstreams ${this.tracksToAdd.length}
+      `
+      console.log(msg);
+
+      while((this.pc.signalingState === "connected" ||
+      this.pc.signalingState === "stable")
+        && this.tracksToAdd.length > 0)  {
+        let {track, stream} = this.tracksToAdd.pop();
+        this.pc.addTrack(track, stream);
+      }
   }
 
   set remoteSocketId(remoteId) {
     this.remoteId = remoteId;
+
+    // Once side has to be polite in the perfect negotiation pattern
+    // We decide to be polite by comparing the socket ID strings.
+    // Simple but effective
+    this.polite = this.socket.id < this.remoteId;
   }
 
   close = () => {
     this.pc.close();
+    delete this.pc;
+    this.setupPeerConnection();
   }
 
   send = (msg) => {
@@ -102,13 +151,14 @@ class WebRTCConnection {
     }
   }
 
-  onmessage = async ({
-    msg: {
-      description,
-      candidate
-    }
-  }) => {
+  onmessage = async (webrtcdata) => {
     try {
+      const {description, candidate} = webrtcdata.msg;
+      if (this.remoteId === null) {
+        console.log(`Got WEBRTC data but no current remote socket ID. Setting to ${webrtcdata.playerId}`);
+        this.remoteSocketId = webrtcdata.playerId;
+      }
+
       if (description) {
         const offerCollision = (description.type == "offer") &&
           (this.makingOffer || pc.signalingState != "stable");
@@ -325,7 +375,7 @@ function create() {
   let pc = this.webrtcConnection.pc;
 
   // connect audio / video
-  pc.addEventListener('track', evt => {
+  this.webrtcConnection.addEventListener('track', evt => {
     console.log('Track event' + event.track.kind);
     if (evt.track.kind == 'video') {
       addVideo(evt.streams[0]);
@@ -348,7 +398,7 @@ function create() {
     }
   });
 
-  pc.addEventListener('removetrack', function(evt) {
+  this.webrtcConnection.addEventListener('removetrack', function(evt) {
     console.log('Removetrack called');
   });
 
@@ -375,7 +425,6 @@ function create() {
 
     // We're the media mediaMaster
     self.mediaMaster = true;
-    self.webrtcConnection.bePolite = true;
     sendMedia(self);
   });
 
@@ -386,7 +435,7 @@ function create() {
         player.parent.destroy();
       }
       delete self.playerMap[playerId];
-      if (playerId == self.chatPlayer.playerId) {
+      if (self.chatPlayer && playerId == self.chatPlayer) {
         self.chatPlayer = null;
         self.mediaSent = false;
         self.webrtcConnection.close();
@@ -743,7 +792,8 @@ function sendAudio(self) {
 
   navigator.mediaDevices.getUserMedia(constraints).then(stream => {
     var audio_track = stream.getAudioTracks()[0];
-    pc.addTrack(audio_track, stream);
+    //pc.addTrack(audio_track, stream);
+    self.webrtcConnection.addTrack(audio_track, stream);
     self.audioSent = true;
   });
 }
@@ -760,7 +810,8 @@ function sendCutout(self) {
     console.log('Adding cutout video track to peer connection');
     var stream = cutout_video.captureStream(30);
     var track = stream.getVideoTracks()[0];
-    pc.addTrack(track, stream);
+    //pc.addTrack(track, stream);
+    self.webrtcConnection.addTrack(track, stream);
     self.cutoutSent = true;
   } else {
     console.log("Cutout video not yet defined!");
