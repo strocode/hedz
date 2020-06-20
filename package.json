@@ -1,0 +1,31 @@
+{
+  "name": "hedzapp",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "start": "node ./bin/www",
+    "build": "webpack"
+  },
+  "dependencies": {
+    "canvas": "^2.6.1",
+    "cookie-parser": "~1.4.4",
+    "datauri": "^3.0.0",
+    "debug": "~2.6.9",
+    "express": "~4.16.1",
+    "express-session": "^1.17.1",
+    "http-errors": "~1.6.3",
+    "jade": "~1.11.0",
+    "jsdom": "^16.2.2",
+    "morgan": "~1.9.1",
+    "nodemailer": "^6.4.8",
+    "save-dev": "0.0.1-security",
+    "socket.io": "^2.3.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.9.6",
+    "@babel/preset-env": "^7.9.6",
+    "babel-loader": "^8.1.0",
+    "webpack": "^4.43.0",
+    "webpack-cli": "^3.3.11"
+  }
+}

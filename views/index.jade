@@ -1,0 +1,25 @@
+extends layout
+
+block content
+  h1= title
+  p. #{title}
+
+  p.
+    To play with a friend: Make up an easy to remember password and press submit.
+    Then send your friend your password using your favourite method (phone, sms, whatever!)
+
+  p.
+    If someone has already sent you their password, type it in and hit submit.
+
+  p.
+    If you don't type one in, we'll make up a crazy one
+
+  p.
+
+  form(action='newgame' method='get')
+    label(for='gameid') Game Password:
+    input(type='text', id='gameId', name='gameId')
+    input(type='submit')
+
+  a(href='https://forms.gle/yVj29JB3WKBfBrM89').
+    Send Feedback
