@@ -5,6 +5,7 @@
   "scripts": {
     "start": "node ./bin/www",
     "build": "webpack"
+    "deploy": "pm2 deploy production hedz"
   },
   "dependencies": {
     "canvas": "^2.6.1",
