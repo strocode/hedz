@@ -497,6 +497,9 @@ function setChatPlayer(self, player) {
     self.chatPlayer = player.playerId;
     self.webrtcConnection.remoteSocketId = player.playerId;
     console.log('Set chat player to ' + self.chatPlayer);
+    self.mediaSent = false;
+    self.audioSent = false;
+    self.cutoutSent = false;
 
   }
 }
