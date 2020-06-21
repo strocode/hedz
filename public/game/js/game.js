@@ -329,6 +329,8 @@ function preload() {
   this.load.audio('starCapture', 'phaser3_assets/audio/SoundEffects/p-ping.mp3');
   this.load.audio('boostStarted', 'phaser3_assets/audio/SoundEffects/pickup.wav')
   this.load.atlas('gems', 'phaser3_assets/tests/columns/gems.png', 'phaser3_assets/tests/columns/gems.json');
+  this.load.spritesheet('explosion1', 'phaser3_assets/sprites/explosion.png', {frameWidth: 64, frameHeight: 64});
+  this.load.spritesheet('explosion2', 'phaser3_assets/games/lazer/explosion.png', {frameWidth: 16, frameHeight: 16});
 }
 
 function create() {
@@ -368,10 +370,9 @@ function create() {
   this.anims.create({ key: 'diamond', frames: this.anims.generateFrameNames('gems', { prefix: 'diamond_', end: 15, zeroPad: 4 }), repeat: -1 });
   this.anims.create({ key: 'ruby', frames: this.anims.generateFrameNames('gems', { prefix: 'ruby_', end: 6, zeroPad: 4 }), repeat: -1 });
   this.anims.create({ key: 'prism', frames: this.anims.generateFrameNames('gems', { prefix: 'prism_', end: 6, zeroPad: 4 }), repeat: -1 });
-  this.anims.create({ key: 'square', frames: this.anims.generateFrameNames('gems', { prefix: 'square_', end: 14, zeroPad: 4 }), repeat: -1 });
-
-
-
+  this.anims.create({ key: 'square', frames: this.anims.generateFrameNames('gems', { prefix: 'square_', end: 14, zeroPad: 4 }), repeat: 1 });
+  this.anims.create({ key: 'explosion1', frames: this.anims.generateFrameNumbers('explosion1'), repeat: 0 });
+  this.anims.create({ key: 'explosion2', frames: this.anims.generateFrameNumbers('explosion2') , repeat: 0 });
 
   this.createThrustEmitter();
 
@@ -499,9 +500,16 @@ function create() {
     if (!self.star) {
       //self.star = self.add.image(starLocation.x, starLocation.y, 'star');
       self.star = self.add.sprite(starLocation.x, starLocation.y, 'gems');
+      self.explosion1 = self.add.sprite(starLocation.x, starLocation.y, 'explosion1');
+      self.explosion1.visible = false;
+      self.explosion2 = self.add.sprite(starLocation.x, starLocation.y, 'explosion2', );
+      self.explosion2.visible = false;
     } else {
       self.star.setPosition(starLocation.x, starLocation.y);
+      self.explosion1.setPosition(starLocation.x, starLocation.y);
       self.sound.play('starCapture');
+      self.explosion1.visible = true;
+      self.explosion1.play('explosion1');
     }
     self.star.play(anims[star_animation_no]);
     star_animation_no = (star_animation_no + 1)% anims.length;
