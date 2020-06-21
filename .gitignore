@@ -3,6 +3,8 @@
 venv/
 package-lock.json
 node_modules/
+public/game/phaser3_assets
+
 # Logs
 logs
 *.log
@@ -107,4 +109,3 @@ dist
 
 # TernJS port file
 .tern-port
-
