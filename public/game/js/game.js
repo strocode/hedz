@@ -317,7 +317,6 @@ Promise.all([
 
 function startGame() {
   game = new Phaser.Game(config);
-  pc = createMyPeerConnection();
 }
 
 
@@ -327,6 +326,7 @@ function preload() {
   this.load.image('star', 'assets/star_gold.png');
   this.load.image('jets', 'phaser3_assets/particles/blue.png');
   this.load.image('flares', 'phaser3_assets/particles/yellow.png');
+  this.load.audio('starCapture', 'phaser3_assets/audio/SoundEffects/p-ping.mp3')
 }
 
 function create() {
@@ -482,6 +482,7 @@ function create() {
       self.star = self.add.image(starLocation.x, starLocation.y, 'star');
     } else {
       self.star.setPosition(starLocation.x, starLocation.y);
+      self.sound.play('starCapture');
     }
   });
 
