@@ -326,7 +326,9 @@ function preload() {
   this.load.image('star', 'assets/star_gold.png');
   this.load.image('jets', 'phaser3_assets/particles/blue.png');
   this.load.image('flares', 'phaser3_assets/particles/yellow.png');
-  this.load.audio('starCapture', 'phaser3_assets/audio/SoundEffects/p-ping.mp3')
+  this.load.audio('starCapture', 'phaser3_assets/audio/SoundEffects/p-ping.mp3');
+  this.load.audio('boostStarted', 'phaser3_assets/audio/SoundEffects/pickup.wav')
+  this.load.atlas('gems', 'phaser3_assets/tests/columns/gems.png', 'phaser3_assets/tests/columns/gems.json');
 }
 
 function create() {
@@ -363,6 +365,12 @@ function create() {
 
   this.smileMeter = this.add.rectangle(20, GAME_HEIGHT - 20, 20, 100, 0x00ff00, 0.5).setOrigin(0.5, 1.0);
   this.boostMeter = this.add.rectangle(50, GAME_HEIGHT - 20, 20, 100, 0x00ff00, 0.5).setOrigin(0.5, 1.0);
+  this.anims.create({ key: 'diamond', frames: this.anims.generateFrameNames('gems', { prefix: 'diamond_', end: 15, zeroPad: 4 }), repeat: -1 });
+  this.anims.create({ key: 'ruby', frames: this.anims.generateFrameNames('gems', { prefix: 'ruby_', end: 6, zeroPad: 4 }), repeat: -1 });
+  this.anims.create({ key: 'prism', frames: this.anims.generateFrameNames('gems', { prefix: 'prism_', end: 6, zeroPad: 4 }), repeat: -1 });
+  this.anims.create({ key: 'square', frames: this.anims.generateFrameNames('gems', { prefix: 'square_', end: 14, zeroPad: 4 }), repeat: -1 });
+
+
 
 
   this.createThrustEmitter();
@@ -467,6 +475,13 @@ function create() {
         //self.thrust.setLifeSpan(pli.boostLevel === 1 ? 250 : 100);
         self.thrust.emitParticle(32);
       }
+
+      const boostStarted = player.lastInput && pli.boostLevel === 1 && player.lastInput.boostLevel !== 1;
+      if (boostStarted) {
+        self.sound.play('boostStarted');
+      }
+
+      player.lastInput = pli;
       setChatPlayer(self, player);
 
     });
@@ -477,13 +492,19 @@ function create() {
     self.redScoreText.setText('Red: ' + scores.red);
   });
 
+  let star_animation_no = 0;
+
   this.socket.on('starLocation', function(starLocation) {
+    const anims = ['diamond','ruby','prism','square'];
     if (!self.star) {
-      self.star = self.add.image(starLocation.x, starLocation.y, 'star');
+      //self.star = self.add.image(starLocation.x, starLocation.y, 'star');
+      self.star = self.add.sprite(starLocation.x, starLocation.y, 'gems');
     } else {
       self.star.setPosition(starLocation.x, starLocation.y);
       self.sound.play('starCapture');
     }
+    self.star.play(anims[star_animation_no]);
+    star_animation_no = (star_animation_no + 1)% anims.length;
   });
 
   this.cursors = this.input.keyboard.createCursorKeys();
