@@ -6,23 +6,23 @@ const config = {
   width: 800,
   height: 600,
   physics: {
-    default: 'arcade',
+    default: 'matter',
     arcade: {
       debug: false,
       gravity: {
         y: 0
       }
     },
-    // matter: {
-    //     enableSleeping: true,
-    //     gravity: {
-    //         y: 0
-    //     },
-    //     debug: {
-    //         showBody: true,
-    //         showStaticBody: true
-    //     }
-    // }
+    matter: {
+        enableSleeping: true,
+        gravity: {
+            y: 0
+        },
+        debug: {
+            showBody: true,
+            showStaticBody: true
+        }
+    }
   },
   scene: {
     preload: preload,
@@ -36,12 +36,13 @@ function preload() {
   this.load.image('ship', 'assets/spaceShips_001.png');
   this.load.image('star', 'assets/star_gold.png');
   this.load.image('rocket1', '../public/game/assets/rocket-297573.png');
-  //this.game.load.physics('rocket1', 'assets/rocket-297573.json')
+  this.load.json('rockets', '../public/game/assets/rocket-297573.json')
 }
 
 function create() {
   const self = this;
-  this.players = this.physics.add.group();
+  //this.players = this.physics.add.group();
+  this.players = [];
   this.gameId = document.gameId;
   console.log(`creating game ${this.gameID}`);
 
@@ -50,22 +51,28 @@ function create() {
     red: 0
   };
 
-  this.star = this.physics.add.image(randomPosition(700), randomPosition(500), 'star');
-  this.physics.add.collider(this.players);
+  if (this.physics === undefined) {
+    this.physics = this.matter;
+  }
 
-  this.physics.add.overlap(this.players, this.star, function(star, player) {
-    if (players[player.playerId].team === 'red') {
-      self.scores.red += 10;
-    } else {
-      self.scores.blue += 10;
-    }
-    self.star.setPosition(randomPosition(700), randomPosition(500));
-    io.emit('updateScore', self.scores);
-    io.emit('starLocation', {
-      x: self.star.x,
-      y: self.star.y
-    });
+  this.star = this.physics.add.image(randomPosition(700), randomPosition(500), 'star');
+  this.star.setOnCollide(pair => {
+    console.log('Pair collided', pair);
   });
+
+  // this.physics.add.overlap(this.players, this.star, function(star, player) {
+  //   if (players[player.playerId].team === 'red') {
+  //     self.scores.red += 10;
+  //   } else {
+  //     self.scores.blue += 10;
+  //   }
+  //   self.star.setPosition(randomPosition(700), randomPosition(500));
+  //   io.emit('updateScore', self.scores);
+  //   io.emit('starLocation', {
+  //     x: self.star.x,
+  //     y: self.star.y
+  //   });
+  // });
 
   io.on('connection', function(socket) {
     // create a new player and add it to our players object
@@ -133,7 +140,7 @@ function create() {
 }
 
 function update() {
-  this.players.getChildren().forEach((player) => {
+  this.players.forEach((player) => {
     const input = players[player.playerId].input;
 
     if (input.left) {
@@ -147,9 +154,9 @@ function update() {
     if (input.up) {
       // Boost level controls how big your thrusters are
       const thrust = input.boostLevel === 1 ? 400 : 50;
-      this.physics.velocityFromRotation(player.rotation + Phaser.Math.TAU, -thrust, player.body.acceleration);
+      //this.physics.velocityFromRotation(player.rotation + Phaser.Math.TAU, -thrust, player.body.acceleration);
     } else {
-      player.setAcceleration(0);
+      //player.setAcceleration(0);
     }
 
     players[player.playerId].x = player.x;
@@ -161,7 +168,7 @@ function update() {
 
 
   });
-  this.physics.world.wrap(this.players, 5);
+  //this.physics.world.wrap(this.players, 5);
   io.emit('playerUpdates', players);
 }
 
@@ -170,7 +177,7 @@ function randomPosition(max) {
 }
 
 function handlePlayerInput(self, playerId, input) {
-  self.players.getChildren().forEach((player) => {
+  self.players.forEach((player) => {
     if (playerId === player.playerId) {
       players[player.playerId].input = input;
     }
@@ -179,11 +186,13 @@ function handlePlayerInput(self, playerId, input) {
 
 function addPlayer(self, playerInfo) {
   const player = self.physics.add.image(playerInfo.x, playerInfo.y, 'rocket1').setOrigin(0.5, 0.5).setDisplaySize(256*1.5, 256);
-  player.setDrag(100);
-  player.setAngularDrag(100);
-  player.setMaxVelocity(200);
+  // player.setDrag(100);
+  // player.setAngularDrag(100);
+  // player.setMaxVelocity(200);
+  player.setFrictionAir(10);
+
   player.playerId = playerInfo.playerId;
-  self.players.add(player);
+  self.players.push(player);
 }
 
 function removePlayer(self, playerId) {
