@@ -14,7 +14,7 @@ const config = {
       }
     },
     matter: {
-        enableSleeping: true,
+        enableSleeping: false, // https://rexrainbow.github.io/phaser3-rex-notes/docs/site/matterjs-gameobject/
         gravity: {
             y: 0
         },
@@ -42,7 +42,8 @@ function preload() {
 function create() {
   const self = this;
   //this.players = this.physics.add.group();
-  this.players = [];
+  this.players = {};
+  this.playerPhysics = {};
   this.gameId = document.gameId;
   console.log(`creating game ${this.gameID}`);
 
@@ -76,6 +77,7 @@ function create() {
 
   io.on('connection', function(socket) {
     // create a new player and add it to our players object
+    let players = self.players;
     const playersByTeam = Object.values(players).reduce((acc, player) => {acc[player.team] += 1; return acc;}, {'red':0,'blue':0});
     const nplayers = Object.values(players).length;
     var team = playersByTeam['red'] < playersByTeam['blue'] ? 'red':'blue';
@@ -115,13 +117,13 @@ function create() {
       removePlayer(self, socket.id);
       // remove this player from our players object
       delete players[socket.id];
-      console.log(`${self.gameId}: user disconnected. Got ${self.players.getLength()} left`);
+      console.log(`${self.gameId}: user disconnected. Got ${self.players.length} left`);
 
       // emit a message to all players to remove this player
       io.emit('disconnect', socket.id);
 
       // tell outside world wehave no more players
-      if (self.players.getLength() == 0) {
+      if (Object.keys(self.players).length == 0) {
           window.onFinished();
       }
     });
@@ -139,35 +141,55 @@ function create() {
   });
 }
 
+function wrap(p) {
+    if (p.x < 0) {
+      p.x = config.width;
+    } else if (p.x > config.width) {
+      p.x = 0;
+    }
+
+    if (p.y < 0) {
+      p.y = config.height;
+    } else if (p.y > config.height) {
+      p.y = 0;
+    }
+}
+
 function update() {
-  this.players.forEach((player) => {
-    const input = players[player.playerId].input;
+  const self = this;
+  const players = self.players;
+  for(let [playerId, player] of Object.entries(players)) {
+    const input = player.input;
+    const playerPhysics = self.playerPhysics[playerId];
 
     if (input.left) {
-      player.setAngularVelocity(-300);
+      playerPhysics.setAngularVelocity(-0.3);
     } else if (input.right) {
-      player.setAngularVelocity(300);
+      playerPhysics.setAngularVelocity(0.3);
     } else {
-      player.setAngularVelocity(0);
+      playerPhysics.setAngularVelocity(0);
     }
 
     if (input.up) {
       // Boost level controls how big your thrusters are
-      const thrust = input.boostLevel === 1 ? 400 : 50;
+      const thrust = input.boostLevel === 1 ? 1 : 0.25;
       //this.physics.velocityFromRotation(player.rotation + Phaser.Math.TAU, -thrust, player.body.acceleration);
+      playerPhysics.thrustLeft(thrust);
     } else {
       //player.setAcceleration(0);
     }
 
-    players[player.playerId].x = player.x;
-    players[player.playerId].y = player.y;
-    players[player.playerId].rotation = player.rotation;
+    wrap(playerPhysics);
+
+    players[player.playerId].x = playerPhysics.x;
+    players[player.playerId].y = playerPhysics.y;
+    players[player.playerId].rotation = playerPhysics.rotation;
     players[player.playerId].thrusting = Boolean(input.up);
     players[player.playerId].smileLevel = input.smileLevel;
     players[player.playerId].boostLevel = input.boostLevel;
 
 
-  });
+  }
   //this.physics.world.wrap(this.players, 5);
   io.emit('playerUpdates', players);
 }
@@ -177,11 +199,7 @@ function randomPosition(max) {
 }
 
 function handlePlayerInput(self, playerId, input) {
-  self.players.forEach((player) => {
-    if (playerId === player.playerId) {
-      players[player.playerId].input = input;
-    }
-  });
+  self.players[playerId].input = input;
 }
 
 function addPlayer(self, playerInfo) {
@@ -189,18 +207,15 @@ function addPlayer(self, playerInfo) {
   // player.setDrag(100);
   // player.setAngularDrag(100);
   // player.setMaxVelocity(200);
-  player.setFrictionAir(10);
+  player.setFrictionAir(0.1);
 
   player.playerId = playerInfo.playerId;
-  self.players.push(player);
+  self.playerPhysics[player.playerId] = player;
 }
 
 function removePlayer(self, playerId) {
-  self.players.getChildren().forEach((player) => {
-    if (playerId === player.playerId) {
-      player.destroy();
-    }
-  });
+  self.playerPhysics[playerId].destroy();
+  delete self.playerPhysics[playerId];
 }
 
 const game = new Phaser.Game(config);
