@@ -12,7 +12,17 @@ const config = {
       gravity: {
         y: 0
       }
-    }
+    },
+    // matter: {
+    //     enableSleeping: true,
+    //     gravity: {
+    //         y: 0
+    //     },
+    //     debug: {
+    //         showBody: true,
+    //         showStaticBody: true
+    //     }
+    // }
   },
   scene: {
     preload: preload,
@@ -25,6 +35,8 @@ const config = {
 function preload() {
   this.load.image('ship', 'assets/spaceShips_001.png');
   this.load.image('star', 'assets/star_gold.png');
+  this.load.image('rocket1', '../public/game/assets/rocket-297573.png');
+  //this.game.load.physics('rocket1', 'assets/rocket-297573.json')
 }
 
 function create() {
@@ -166,7 +178,7 @@ function handlePlayerInput(self, playerId, input) {
 }
 
 function addPlayer(self, playerInfo) {
-  const player = self.physics.add.image(playerInfo.x, playerInfo.y, 'ship').setOrigin(0.5, 0.5).setDisplaySize(128, 128);
+  const player = self.physics.add.image(playerInfo.x, playerInfo.y, 'rocket1').setOrigin(0.5, 0.5).setDisplaySize(256*1.5, 256);
   player.setDrag(100);
   player.setAngularDrag(100);
   player.setMaxVelocity(200);
