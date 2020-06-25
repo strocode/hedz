@@ -307,7 +307,7 @@ class RocketHead {
 
   setPosition(x, y) {
     //console.log(`Setting position of player ${this.playerInfo.playerId} to [${x}, ${y}]`)
-    this?.playerSprite.setPosition(x + this.playerSprite.centerOfMass.x, y + this.playerSprite.centerOfMass.y);
+    this?.playerSprite.setPosition(x, y);
     this?.videoelement.setPosition(x, y);
     this?.playerBorder.setPosition(x, y);;
   }
