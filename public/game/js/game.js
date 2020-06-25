@@ -204,7 +204,7 @@ var config = {
     createContainer: true
   },
   physics: {
-    default: 'impact',
+    default: 'matter',
     impact: {
       setBounds: {
         x: 0,
@@ -213,6 +213,16 @@ var config = {
         height: GAME_HEIGHT,
         thickness: 32
       }
+    },
+    matter: {
+        enableSleeping: false, // https://rexrainbow.github.io/phaser3-rex-notes/docs/site/matterjs-gameobject/
+        gravity: {
+            y: 0
+        },
+        debug: {
+            showBody: true,
+            showStaticBody: true
+        }
     }
   },
   scene: {
@@ -254,7 +264,14 @@ class RocketHead {
     this.scene = scene;
     scene.add.existing(this);
     const spritename = 'rocket1';
-    this.playerSprite = scene.add.sprite(playerInfo.x, playerInfo.y, spritename).setOrigin(0.5, 0.5).setDisplaySize(256*1.5, 256);
+    //this.playerSprite = scene.add.sprite(playerInfo.x, playerInfo.y, spritename).setOrigin(0.5, 0.5).setDisplaySize(256*1.5, 256);
+    let shape = scene.cache.json.get('shapes')['rocket-297573'];
+    this.playerSprite = scene.matter.add.sprite(
+      playerInfo.x,
+      playerInfo.y,
+      spritename, null,
+      {shape:shape}).setDisplaySize(256*1.5, 256);
+    this.playerSprite.setSensor(true);
     this.playerBorder = scene.add.rectangle(playerInfo.x, playerInfo.y, 128 + 2, 128 + 2).setOrigin(0.5, 0.5);
 
     const colour =  playerInfo.team === 'blue' ? 0x0000ff : 0xff0000
@@ -290,7 +307,7 @@ class RocketHead {
 
   setPosition(x, y) {
     //console.log(`Setting position of player ${this.playerInfo.playerId} to [${x}, ${y}]`)
-    this?.playerSprite.setPosition(x, y);
+    this?.playerSprite.setPosition(x + this.playerSprite.centerOfMass.x, y + this.playerSprite.centerOfMass.y);
     this?.videoelement.setPosition(x, y);
     this?.playerBorder.setPosition(x, y);;
   }
@@ -329,6 +346,7 @@ function preload() {
   this.load.atlas('gems', 'phaser3_assets/tests/columns/gems.png', 'phaser3_assets/tests/columns/gems.json');
   this.load.spritesheet('explosion1', 'phaser3_assets/sprites/explosion.png', {frameWidth: 64, frameHeight: 64});
   this.load.spritesheet('explosion2', 'phaser3_assets/games/lazer/explosion.png', {frameWidth: 16, frameHeight: 16});
+  this.load.json('shapes', 'assets/ships_physics.json');
 
 }
 
@@ -498,7 +516,9 @@ function create() {
     const anims = ['diamond','ruby','prism','square'];
     if (!self.star) {
       //self.star = self.add.image(starLocation.x, starLocation.y, 'star');
-      self.star = self.add.sprite(starLocation.x, starLocation.y, 'gems');
+      let shape = self.cache.json.get('shapes')['star_gold'];
+
+      self.star = self.matter.add.sprite(starLocation.x, starLocation.y, 'gems', null, {shape:shape});
       self.explosion1 = self.add.sprite(starLocation.x, starLocation.y, 'explosion1');
       self.explosion1.visible = false;
       self.explosion2 = self.add.sprite(starLocation.x, starLocation.y, 'explosion2', );

@@ -36,7 +36,8 @@ function preload() {
   this.load.image('ship', 'assets/spaceShips_001.png');
   this.load.image('star', 'assets/star_gold.png');
   this.load.image('rocket1', '../public/game/assets/rocket-297573.png');
-  this.load.json('rockets', '../public/game/assets/rocket-297573.json')
+  // From: https://www.codeandweb.com/physicseditor/tutorials/how-to-create-physics-shapes-for-phaser-3-and-matterjs
+  this.load.json('shapes', '../public/game/assets/ships_physics.json');
 }
 
 function create() {
@@ -55,25 +56,27 @@ function create() {
   if (this.physics === undefined) {
     this.physics = this.matter;
   }
-
-  this.star = this.physics.add.image(randomPosition(700), randomPosition(500), 'star');
+  let shapes = this.cache.json.get('shapes');
+  this.star = this.physics.add.image(
+    randomPosition(700),
+    randomPosition(500),
+    'star', null);
+  this.star.setSensor(true); // Star doesn't collide, but does detect collisions
   this.star.setOnCollide(pair => {
     console.log('Pair collided', pair);
-  });
+    const playerId = pair.bodyA.gameObject.playerId !== undefined ?
+      pair.bodyA.gameObject.playerId : pair.bodyB.gameObject.playerId;
 
-  // this.physics.add.overlap(this.players, this.star, function(star, player) {
-  //   if (players[player.playerId].team === 'red') {
-  //     self.scores.red += 10;
-  //   } else {
-  //     self.scores.blue += 10;
-  //   }
-  //   self.star.setPosition(randomPosition(700), randomPosition(500));
-  //   io.emit('updateScore', self.scores);
-  //   io.emit('starLocation', {
-  //     x: self.star.x,
-  //     y: self.star.y
-  //   });
-  // });
+    const player = self.players[playerId];
+    const team = player.team;
+    self.scores[team] += 10;
+    self.star.setPosition(randomPosition(700), randomPosition(500));
+    io.emit('updateScore', self.scores);
+    io.emit('starLocation', {
+      x: self.star.x,
+      y: self.star.y
+    });
+  });
 
   io.on('connection', function(socket) {
     // create a new player and add it to our players object
@@ -163,9 +166,9 @@ function update() {
     const playerPhysics = self.playerPhysics[playerId];
 
     if (input.left) {
-      playerPhysics.setAngularVelocity(-0.3);
+      playerPhysics.setAngularVelocity(-0.3/4);
     } else if (input.right) {
-      playerPhysics.setAngularVelocity(0.3);
+      playerPhysics.setAngularVelocity(0.3/4);
     } else {
       playerPhysics.setAngularVelocity(0);
     }
@@ -203,7 +206,14 @@ function handlePlayerInput(self, playerId, input) {
 }
 
 function addPlayer(self, playerInfo) {
-  const player = self.physics.add.image(playerInfo.x, playerInfo.y, 'rocket1').setOrigin(0.5, 0.5).setDisplaySize(256*1.5, 256);
+  let shapes = self.cache.json.get('shapes');
+  let options = {shape:shapes['rocket-297573']};
+  options = {};
+  const player = self.physics.add.sprite(
+      playerInfo.x,
+      playerInfo.y,
+      'rocket1', null, options).setDisplaySize(256*1.5, 256);
+
   // player.setDrag(100);
   // player.setAngularDrag(100);
   // player.setMaxVelocity(200);
