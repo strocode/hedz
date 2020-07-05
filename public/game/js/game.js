@@ -265,13 +265,13 @@ class RocketHead {
     scene.add.existing(this);
     const spritename = 'rocket1';
     //this.playerSprite = scene.add.sprite(playerInfo.x, playerInfo.y, spritename).setOrigin(0.5, 0.5).setDisplaySize(256*1.5, 256);
-    let shape = scene.cache.json.get('shapes')['rocket-297573'];
+    let shape = scene.cache.json.get('shapes')['rocket-297573h300'];
     this.playerSprite = scene.matter.add.sprite(
       playerInfo.x,
       playerInfo.y,
       spritename, null,
-      {shape:shape}).setDisplaySize(256*1.5, 256);
-    this.playerSprite.setSensor(true);
+      {shape:shape}); //.setDisplaySize(256*1.5, 256);
+    this.playerSprite.setSensor(false);
     this.playerBorder = scene.add.rectangle(playerInfo.x, playerInfo.y, 128 + 2, 128 + 2).setOrigin(0.5, 0.5);
 
     const colour =  playerInfo.team === 'blue' ? 0x0000ff : 0xff0000
@@ -337,7 +337,7 @@ function startGame() {
 function preload() {
   this.load.image('ship', 'assets/spaceShips_001.png');
   this.load.image('otherPlayer', 'assets/enemyBlack5.png');
-  this.load.image('rocket1', 'assets/rocket-297573.png');
+  this.load.image('rocket1', 'assets/rocket-297573h300.png');
   this.load.image('star', 'assets/star_gold.png');
   this.load.image('jets', 'phaser3_assets/particles/blue.png');
   this.load.image('flares', 'phaser3_assets/particles/yellow.png');
@@ -346,7 +346,7 @@ function preload() {
   this.load.atlas('gems', 'phaser3_assets/tests/columns/gems.png', 'phaser3_assets/tests/columns/gems.json');
   this.load.spritesheet('explosion1', 'phaser3_assets/sprites/explosion.png', {frameWidth: 64, frameHeight: 64});
   this.load.spritesheet('explosion2', 'phaser3_assets/games/lazer/explosion.png', {frameWidth: 16, frameHeight: 16});
-  this.load.json('shapes', 'assets/ships_physics.json');
+  this.load.json('shapes', 'assets/rocket-physics.json');
 
 }
 

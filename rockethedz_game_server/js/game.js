@@ -35,9 +35,9 @@ const config = {
 function preload() {
   this.load.image('ship', 'assets/spaceShips_001.png');
   this.load.image('star', 'assets/star_gold.png');
-  this.load.image('rocket1', '../public/game/assets/rocket-297573.png');
+  this.load.image('rocket1', '../public/game/assets/rocket-297573h300.png');
   // From: https://www.codeandweb.com/physicseditor/tutorials/how-to-create-physics-shapes-for-phaser-3-and-matterjs
-  this.load.json('shapes', '../public/game/assets/ships_physics.json');
+  this.load.json('shapes', '../public/game/assets/rocket-physics.json');
 }
 
 function create() {
@@ -62,6 +62,7 @@ function create() {
     randomPosition(500),
     'star', null);
   this.star.setSensor(true); // Star doesn't collide, but does detect collisions
+  this.star.setCollisionGroup(0);
   this.star.setOnCollide(pair => {
     console.log('Pair collided', pair);
     const playerId = pair.bodyA.gameObject.playerId !== undefined ?
@@ -137,7 +138,7 @@ function create() {
 
     // send webrtc chat data to the requested player
     socket.on('webrtc', function(webrtcdata) {
-      console.log('Got webrtc: %O', webrtcdata);
+      //console.log('Got webrtc:', webrtcdata);
       var playerId = webrtcdata.playerId;
       socket.broadcast.to(playerId).emit('webrtc', webrtcdata);
     });
@@ -207,17 +208,20 @@ function handlePlayerInput(self, playerId, input) {
 
 function addPlayer(self, playerInfo) {
   let shapes = self.cache.json.get('shapes');
-  let options = {shape:shapes['rocket-297573']};
-  options = {};
+  let options = {shape:shapes['rocket-297573h300']};
   const player = self.physics.add.sprite(
       playerInfo.x,
       playerInfo.y,
-      'rocket1', null, options).setDisplaySize(256*1.5, 256);
+      'rocket1', null, options); //.setDisplaySize(256*1.5, 256);
 
   // player.setDrag(100);
   // player.setAngularDrag(100);
   // player.setMaxVelocity(200);
   player.setFrictionAir(0.1);
+  player.setCollisionGroup(0);
+  player.setCollidesWith(0xffffffff);
+
+  console.log('Player collision filter', player.body.collisionFilter, 'star collision', self.star.body.collisionFilter, 'options', options);
 
   player.playerId = playerInfo.playerId;
   self.playerPhysics[player.playerId] = player;
