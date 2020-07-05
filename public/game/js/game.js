@@ -7,8 +7,9 @@ function createMyPeerConnection() {
 
   if (document.getElementById('use-stun').checked) {
     config.iceServers = [{
-      urls: ['stun:stun.l.google.com:19302',
-            'turn:freya.bannister.id.au:3479']
+      urls: ['stun:stun.l.google.com:19302'
+            //'turn:freya.bannister.id.au:3479'
+          ]
     }];
   }
 
