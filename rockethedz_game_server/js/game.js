@@ -166,17 +166,21 @@ function update() {
     const input = player.input;
     const playerPhysics = self.playerPhysics[playerId];
 
+    let torque=5.0;
     if (input.left) {
-      playerPhysics.setAngularVelocity(-0.3/4);
+      //playerPhysics.setAngularVelocity(-0.3/4);
+      playerPhysics.body.torque = -torque;
     } else if (input.right) {
-      playerPhysics.setAngularVelocity(0.3/4);
+      //playerPhysics.setAngularVelocity(0.3/4);
+      playerPhysics.body.torque = torque ;
+
     } else {
-      playerPhysics.setAngularVelocity(0);
+      //playerPhysics.setAngularVelocity(0);
     }
 
     if (input.up) {
       // Boost level controls how big your thrusters are
-      const thrust = input.boostLevel === 1 ? 1 : 0.25;
+      const thrust = input.boostLevel === 1 ? 0.25 : 0.1;
       //this.physics.velocityFromRotation(player.rotation + Phaser.Math.TAU, -thrust, player.body.acceleration);
       playerPhysics.thrustLeft(thrust);
     } else {
