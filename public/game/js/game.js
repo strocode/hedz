@@ -220,8 +220,8 @@ var config = {
             y: 0
         },
         debug: {
-            showBody: true,
-            showStaticBody: true
+            showBody: false,
+            showStaticBody: false
         }
     }
   },
