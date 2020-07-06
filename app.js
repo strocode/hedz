@@ -3,6 +3,7 @@ var express = require('express');
 var path = require('path');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
+var dotenv = require('dotenv').config();
 //var session = require('express-session');
 
 var indexRouter = require('./routes/index');
@@ -28,6 +29,13 @@ var sess = {
   secret: '@!Ew8Bjkg1',
   cookie: {}
 }
+
+let turn_secret = process.env.TURN_SECRET;
+if (turn_secret === undefined) {
+  throw 'TURN_SECRET environment variable is not defined'
+}
+
+app.set('turn_secret', turn_secret);
 
 if (app.get('env') === 'production') {
   app.set('trust proxy', 1) // trust first proxy

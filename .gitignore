@@ -5,8 +5,6 @@ package-lock.json
 node_modules/
 public/game/phaser3_assets
 .env
-ecosystem.config.js
-
 
 # Logs
 logs

@@ -34,7 +34,11 @@ function getIceServer(name) {
   let turn_server = process.env.TURN_SERVER || 'localhost';
   let turn_port = process.env.TURN_PORT || 5349;
   let turn_proto = process.env.TURN_PROTO || 'turns'; // 'turn' or 'turns'
-  let cred = calcTURNCredentials(name, process.env.TURN_SECRET, expire_sec);
+  let secret = process.env.TURN_SECRET;
+  if (secret === undefined) {
+    throw 'TURN_SECRET is not defined'
+  }
+  let cred = calcTURNCredentials(name, secret, expire_sec);
   const iceServer = {
     username:cred.username,
     credential:cred.password,
