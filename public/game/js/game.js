@@ -52,13 +52,13 @@ class WebRTCConnection {
     this.pc = null;
   }
 
-  setupPeerConnection = (server) => {
+  setupPeerConnection = () => {
     this.isPolite = false;
     this.makingOffer = false;
     this.ignoreOffer = false;
     this.remoteId = null;
     this.tracksToAdd = []; //[...this.allTracks];
-    this.pc = createMyPeerConnection(server);
+    this.pc = createMyPeerConnection(this.iceServer);
     pc = this.pc;
     const signaler = this;
     pc.onnegotiationneeded = async () => {
@@ -118,6 +118,10 @@ class WebRTCConnection {
   set iceServer(server) {
     this._iceServer = server;
     this.setupPeerConnection(server);
+  }
+
+  get iceServer() {
+    return this._iceServer;
   }
 
   sendTracksIfPossible = () => {
