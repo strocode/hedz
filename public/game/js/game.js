@@ -1,19 +1,21 @@
 'use strict'
 
-function createMyPeerConnection() {
-  var config = {
-    sdpSemantics: 'unified-plan'
+function createMyPeerConnection(iceServer) {
+  let config = {
+    sdpSemantics: 'unified-plan',
+    iceServers: [iceServer]
   };
 
-  if (document.getElementById('use-stun').checked) {
-    config.iceServers = [{
-      urls: ['stun:stun.l.google.com:19302'
-            //'turn:freya.bannister.id.au:3479'
-          ]
-    }];
-  }
+  //
+  // if (document.getElementById('use-stun').checked) {
+  //   config.iceServers = [{
+  //     urls: ['stun:stun.l.google.com:19302'
+  //           //'turn:freya.bannister.id.au:3479'
+  //         ]
+  //   }];
+  // }
 
-  pc = new RTCPeerConnection(config);
+  let pc = new RTCPeerConnection(config);
 
   // register some listeners to help debugging
   pc.addEventListener('icegatheringstatechange', function() {
@@ -47,16 +49,16 @@ class WebRTCConnection {
         await this.onmessage(webrtcdata);
       }
     });
-    this.setupPeerConnection();
+    this.pc = null;
   }
 
-  setupPeerConnection = () => {
+  setupPeerConnection = (server) => {
     this.isPolite = false;
     this.makingOffer = false;
     this.ignoreOffer = false;
     this.remoteId = null;
     this.tracksToAdd = []; //[...this.allTracks];
-    this.pc = createMyPeerConnection();
+    this.pc = createMyPeerConnection(server);
     pc = this.pc;
     const signaler = this;
     pc.onnegotiationneeded = async () => {
@@ -96,7 +98,10 @@ class WebRTCConnection {
   }
 
   addEventListener = (evtname, func) => {
-    this.pc.addEventListener(evtname, func);
+
+    if (this.pc !== null) {
+      this.pc.addEventListener(evtname, func);
+    }
 
     if (!(evtname in Object.keys(this.listeners))) {
       this.listeners[evtname] = [];
@@ -108,6 +113,11 @@ class WebRTCConnection {
     this.tracksToAdd.unshift({track, stream});
     this.allTracks.unshift({track, stream});
     this.sendTracksIfPossible();
+  }
+
+  set iceServer(server) {
+    this._iceServer = server;
+    this.setupPeerConnection(server);
   }
 
   sendTracksIfPossible = () => {
@@ -534,6 +544,10 @@ function create() {
     }
     self.star.play(anims[star_animation_no]);
     star_animation_no = (star_animation_no + 1)% anims.length;
+  });
+
+  this.socket.on('iceServers', function(iceServer) {
+    self.webrtcConnection.iceServer = iceServer;
   });
 
   this.cursors = this.input.keyboard.createCursorKeys();

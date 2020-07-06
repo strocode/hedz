@@ -106,6 +106,7 @@ function create() {
     addPlayer(self, players[socket.id]);
     // send the players object to the new player
     socket.emit('currentPlayers', players);
+    socket.emit('iceServers', window.getIceServer(socket.id));
     // update all other players of the new player
     socket.broadcast.emit('newPlayer', players[socket.id]);
     // send the star object to the new player
