@@ -222,9 +222,6 @@ function addPlayer(self, playerInfo) {
   // player.setDrag(100);
   // player.setAngularDrag(100);
   // player.setMaxVelocity(200);
-  player.setFrictionAir(0.1);
-  player.setCollisionGroup(0);
-  player.setCollidesWith(0xffffffff);
 
   console.log('Player collision filter', player.body.collisionFilter, 'star collision', self.star.body.collisionFilter, 'options', options);
 
