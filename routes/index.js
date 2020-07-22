@@ -43,7 +43,8 @@ function getIceServer(name) {
     username:cred.username,
     credential:cred.password,
     urls: [turn_proto + ':' + turn_server + ':' + turn_port + '?transport=udp',
-           turn_proto + ':' + turn_server + ':' + turn_port + '?transport=tcp']
+           turn_proto + ':' + turn_server + ':' + turn_port + '?transport=tcp',
+          'stun:stun.l.google.com:19302']
   };
 
   return iceServer;
