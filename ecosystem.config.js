@@ -16,7 +16,7 @@ module.exports = {
   deploy: {
     production: {
       user: 'keith',
-      host: 'hedz',
+      host: 'freya.bannister.id.au',
       ref: 'origin/master',
       repo: 'git@github.com:strocode/hedz.git',
       path: '/home/keith/RocketHedz/',
