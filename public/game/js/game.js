@@ -179,20 +179,29 @@ class WebRTCConnection {
         const offerCollision = (description.type == "offer") &&
           (this.makingOffer || pc.signalingState != "stable");
 
+        if (offerCollision) {
+          console.log('WARNING!!! OFFER COLLISION!');
+        }
+
         this.ignoreOffer = !this.polite && offerCollision;
         if (this.ignoreOffer) {
+          console.log('Ignoring offer');
           return;
         }
 
+        console.log('Setting remote description');
         await pc.setRemoteDescription(description);
         if (description.type == "offer") {
+          console.log('Setting local description');
           await pc.setLocalDescription();
+          console.log('Sending local description');
           this.send({
             description: pc.localDescription
           })
         }
       } else if (candidate) {
         try {
+          console.log('Adding ice candidate');
           await pc.addIceCandidate(candidate);
         } catch (err) {
           if (!this.ignoreOffer) {

@@ -42,9 +42,10 @@ function getIceServer(name) {
   const iceServer = {
     username:cred.username,
     credential:cred.password,
-    urls: [turn_proto + ':' + turn_server + ':' + turn_port + '?transport=udp',
-           turn_proto + ':' + turn_server + ':' + turn_port + '?transport=tcp',
-          'stun:stun.l.google.com:19302']
+    urls: ['stun:stun.l.google.com:19302',
+          turn_proto + ':' + turn_server + ':' + turn_port + '?transport=udp',
+           turn_proto + ':' + turn_server + ':' + turn_port + '?transport=tcp'
+          ]
   };
 
   return iceServer;
