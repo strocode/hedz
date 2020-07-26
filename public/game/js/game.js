@@ -50,6 +50,7 @@ class WebRTCConnection {
       }
     });
     this.pc = null;
+    this.tracksToAdd = [];
     this.addEventListener('track', this.onTrack);
 
   }
