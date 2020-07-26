@@ -4,6 +4,7 @@ venv/
 package-lock.json
 node_modules/
 public/game/phaser3_assets
+ecosystem.config.js
 .env
 
 # Logs
