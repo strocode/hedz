@@ -21,7 +21,7 @@ const config = {
         debug: {
             showBody: true,
             showStaticBody: true
-        }
+        },
     }
   },
   scene: {
@@ -160,6 +160,16 @@ function wrap(p) {
     }
 }
 
+function clampVelocity(p, maxSpeed)
+{
+  let v = p.body.velocity;
+  let speed = Math.sqrt(v.x*v.x + v.y*v.y);
+  if (speed > maxSpeed) {
+    p.setVelocity(v.x*maxSpeed/speed, v.y*maxSpeed/speed);
+  }
+
+}
+
 function update() {
   const self = this;
   const players = self.players;
@@ -170,10 +180,11 @@ function update() {
     let torque=5.0;
     if (input.left) {
       //playerPhysics.setAngularVelocity(-0.3/4);
-      playerPhysics.body.torque = -torque;
-    } else if (input.right) {
+      playerPhysics.body.torque += -torque;
+    }
+    if (input.right) {
       //playerPhysics.setAngularVelocity(0.3/4);
-      playerPhysics.body.torque = torque ;
+      playerPhysics.body.torque += torque ;
 
     } else {
       //playerPhysics.setAngularVelocity(0);
@@ -188,7 +199,8 @@ function update() {
       //player.setAcceleration(0);
     }
 
-    wrap(playerPhysics);
+    wrap(playerPhysics); // enable wrap plugin didn't work for me
+    clampVelocity(playerPhysics, 10);
 
     players[player.playerId].x = playerPhysics.x;
     players[player.playerId].y = playerPhysics.y;
@@ -221,7 +233,7 @@ function addPlayer(self, playerInfo) {
 
   // player.setDrag(100);
   // player.setAngularDrag(100);
-  // player.setMaxVelocity(200);
+  //player.setMaxVelocity(200);
 
   console.log('Player collision filter', player.body.collisionFilter, 'star collision', self.star.body.collisionFilter, 'options', options);
 
