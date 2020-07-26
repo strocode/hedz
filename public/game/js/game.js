@@ -916,10 +916,6 @@ function sendCutout(self) {
   if (self.cutoutSent) {
     return;
   }
-  if (self.chatPlayer === null || self.chatPlayer === undefined) {
-    console.log('Requested cutout but there is no chat player!');
-    return;
-  }
   if (cutout_video !== undefined) {
     console.log('Adding cutout video track to peer connection');
     var stream = cutout_video.captureStream(30);
