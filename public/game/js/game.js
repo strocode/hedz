@@ -701,6 +701,19 @@ function webcamVideo(self, headCanvas) {
     // Send cutout if we got a new player before we got the video to open
     sendCutout(self);
     video.addEventListener('canplay', () => {
+        // by defualt use whole scene as cutout
+        last_rect = {
+          dw:cutout_video.width,
+          dh:cutout_video.height,
+          dx:0,
+          dy:0,
+          sx:0,
+          sy:0,
+          sw:webcam_video.width,
+          sh:webcam_video.height};
+
+        window.requestAnimationFrame(copyCutout);
+
         const showOverlay = false;
         if (showOverlay) {
           const canvas = faceapi.createCanvasFromMedia(video)
@@ -771,7 +784,6 @@ function webcamVideo(self, headCanvas) {
         }, 250)
 
         // start copying cutout
-        window.requestAnimationFrame(copyCutout);
 
       }
 
