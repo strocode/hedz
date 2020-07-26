@@ -44,6 +44,7 @@ class WebRTCConnection {
     this.socket = socket;
     this.listeners = {};
     this.allTracks = [];
+    this.receivedTracks = [];
     this.socket.on('webrtc', async (webrtcdata) => {
       if (webrtcdata.playerId === this.socket.id) { // if it's addressed to me
         await this.onmessage(webrtcdata);
