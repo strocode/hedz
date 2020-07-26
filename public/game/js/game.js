@@ -152,7 +152,7 @@ class WebRTCConnection {
         console.log('Not sending yet, as havnt got other tracks', this.polite, this.receivedTracks.length);
         return;
       }
-      if (this.remoteId === null) {
+      if (this.remoteId === null || this.pc === null) {
         console.log('Cant send as no remote id');
         return;
       }
@@ -177,6 +177,7 @@ class WebRTCConnection {
   close = () => {
     this.pc.close();
     delete this.pc;
+    this.pc = null;
     this.setupPeerConnection();
   }
 
