@@ -50,6 +50,8 @@ class WebRTCConnection {
       }
     });
     this.pc = null;
+    this.addEventListener('track', this.onTrack);
+
   }
 
   setupPeerConnection = () => {
@@ -58,6 +60,7 @@ class WebRTCConnection {
     this.ignoreOffer = false;
     this.remoteId = null;
     this.tracksToAdd = []; //[...this.allTracks];
+    this.receivedTracks = [];
     this.pc = createMyPeerConnection(this.iceServer);
     pc = this.pc;
     const signaler = this;
@@ -97,18 +100,26 @@ class WebRTCConnection {
 
   }
 
+// Called when a track is recieved
+  onTrack = (event) => {
+    this.receivedTracks.push(event.track);
+    console.log('Track event', event, 'got a total of', this.receivedTracks.length);
+    this.sendTracksIfPossible();
+  }
+
   addEventListener = (evtname, func) => {
 
     if (this.pc !== null) {
       this.pc.addEventListener(evtname, func);
     }
 
-    if (!(evtname in Object.keys(this.listeners))) {
-      this.listeners[evtname] = [];
-    }
-    this.listeners[evtname].push(func);
+    let funclist = this.listeners[evtname] || [];
+    funclist.push(func);
+    this.listeners[evtname] = funclist;
+    console.log('Added listener for', evtname, ' total:', this.listeners[evtname].length);
   }
 
+  // Called by us when we want to send a track
   addTrack = (track, stream) => {
     this.tracksToAdd.unshift({track, stream});
     this.allTracks.unshift({track, stream});
@@ -126,16 +137,32 @@ class WebRTCConnection {
 
   sendTracksIfPossible = () => {
       const msg = `
-      Attempting to send tracks signallingState: ${this.pc.signalingState}
+      SendTracksIfPossible() signallingState: ${this.pc.signalingState}
       iceState: ${this.pc.iceConnectionState}
       nstreams ${this.tracksToAdd.length}
       `
-      console.log(msg);
+      console.log('SendTracksIfPossible() signallingState', this.pc.signalingState,
+       'iceState', this.pc.iceConnectionState,
+      'tracks to add', this.tracksToAdd.length,
+      'received tracks', this.receivedTracks.length,
+      'polite?', this.polite,
+    'remoteId', this.remoteId);
 
-      while((this.pc.signalingState === "connected" ||
-      this.pc.signalingState === "stable")
-        && this.tracksToAdd.length > 0)  {
+      // while((this.pc.signalingState === "connected" ||
+      // this.pc.signalingState === "stable")
+      //   && this.tracksToAdd.length > 0)  {
+      if (this.polite && this.receivedTracks.length < 2) {
+        console.log('Not sending yet, as havnt got other tracks', this.polite, this.receivedTracks.length);
+        return;
+      }
+      if (this.remoteId === null) {
+        console.log('Cant send as no remote id');
+        return;
+      }
+      while(this.tracksToAdd.length > 0)  {
+
         let {track, stream} = this.tracksToAdd.pop();
+        console.log('Actually calling addTrack', track, stream);
         this.pc.addTrack(track, stream);
       }
   }
@@ -428,14 +455,13 @@ function create() {
 
   // connect audio / video
   this.webrtcConnection.addEventListener('track', evt => {
-    console.log('Track event' + event.track.kind);
+    console.log('Track event' + evt.track.kind);
     if (evt.track.kind == 'video') {
       addVideo(evt.streams[0]);
       self.players.getChildren().forEach(function(player) {
         // TODO: work out from the event which player video this is
         if (player.playerId !== self.socket.id) {
           player.parent.video.srcObject = evt.streams[0];
-          sendCutout(self);
           //player.videoelement.play();
           //player.parent.video.play();
         }
@@ -445,10 +471,14 @@ function create() {
       // var audio_elem = document.getElementById("audio");
       audio_elem.srcObject = evt.streams[0];
       audio_elem.play();
-      // This is the trigger to send my media back if we haven't already
-      sendAudio(self);
+
     }
   });
+
+  sendCutout(self);
+
+  // This is the trigger to send my media back if we haven't already
+  sendAudio(self);
 
   this.webrtcConnection.addEventListener('removetrack', function(evt) {
     console.log('Removetrack called');
@@ -876,6 +906,7 @@ function sendAudio(self) {
   navigator.mediaDevices.getUserMedia(constraints).then(stream => {
     var audio_track = stream.getAudioTracks()[0];
     //pc.addTrack(audio_track, stream);
+    console.log('Adding audio track', audio_track, stream);
     self.webrtcConnection.addTrack(audio_track, stream);
     self.audioSent = true;
   });
