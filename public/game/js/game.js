@@ -147,6 +147,7 @@ class WebRTCConnection {
     // We decide to be polite by comparing the socket ID strings.
     // Simple but effective
     this.polite = this.socket.id < this.remoteId;
+    console.log('Setting remote socket: me', this.socket.id, 'remote', this.remoteId, ' polite?', this.polite);
   }
 
   close = () => {
