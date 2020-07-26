@@ -909,6 +909,7 @@ function sendAudio(self) {
   if (self.audioSent) {
     return;
   }
+  self.audioSent = true;
   var constraints = {
     audio: {
       echo_cancellation: true
@@ -920,21 +921,23 @@ function sendAudio(self) {
     //pc.addTrack(audio_track, stream);
     console.log('Adding audio track', audio_track, stream);
     self.webrtcConnection.addTrack(audio_track, stream);
-    self.audioSent = true;
   });
 }
 
 function sendCutout(self) {
+  console.log('sendCutout()', self.cutoutSent, cutout_video);
   if (self.cutoutSent) {
     return;
   }
+
   if (cutout_video !== undefined) {
+    self.cutoutSent= true;
+
     console.log('Adding cutout video track to peer connection');
     var stream = cutout_video.captureStream(30);
     var track = stream.getVideoTracks()[0];
     //pc.addTrack(track, stream);
     self.webrtcConnection.addTrack(track, stream);
-    self.cutoutSent = true;
   } else {
     console.log("Cutout video not yet defined!");
   }
