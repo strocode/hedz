@@ -137,13 +137,8 @@ class WebRTCConnection {
   }
 
   sendTracksIfPossible = () => {
-      const msg = `
-      SendTracksIfPossible() signallingState: ${this.pc.signalingState}
-      iceState: ${this.pc.iceConnectionState}
-      nstreams ${this.tracksToAdd.length}
-      `
-      console.log('SendTracksIfPossible() signallingState', this.pc.signalingState,
-       'iceState', this.pc.iceConnectionState,
+
+      console.log('SendTracksIfPossible() pc', this.pc,
       'tracks to add', this.tracksToAdd.length,
       'received tracks', this.receivedTracks.length,
       'polite?', this.polite,
