@@ -192,7 +192,7 @@ function update() {
 
     if (input.up) {
       // Boost level controls how big your thrusters are
-      const thrust = input.boostLevel === 1 ? 0.25 : 0.1;
+      const thrust = input.boostLevel === 1 ? 0.2 : 0.05;
       //this.physics.velocityFromRotation(player.rotation + Phaser.Math.TAU, -thrust, player.body.acceleration);
       playerPhysics.thrustLeft(thrust);
     } else {
@@ -200,7 +200,7 @@ function update() {
     }
 
     wrap(playerPhysics); // enable wrap plugin didn't work for me
-    clampVelocity(playerPhysics, 10);
+    clampVelocity(playerPhysics, 7);
 
     players[player.playerId].x = playerPhysics.x;
     players[player.playerId].y = playerPhysics.y;
