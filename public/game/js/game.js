@@ -721,9 +721,9 @@ function webcamVideo(self, headCanvas) {
         let max_det_time = 0;
         setInterval(async () => {
           //console.time('detections');
-          if (! self.webrtcConnection.allConnected) {
-            return;
-          }
+          //if (! self.webrtcConnection.allConnected) {
+          return;
+          //}
           const tstart = performance.now();
           detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceExpressions();
           const tend = performance.now();
