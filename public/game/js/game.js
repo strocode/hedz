@@ -430,12 +430,12 @@ function create() {
     fontSize: '32px',
     fill: '#0000FF'
   });
-  this.redScoreText = this.add.text(584, 16, '', {
+  this.redScoreText = this.add.text(config.width - 16*8, 16, '', {
     fontSize: '32px',
     fill: '#FF0000'
   });
 
-  this.statusText = this.add.text(16, 600 - 16 - 4, '', {
+  this.statusText = this.add.text(16, config.height - 16 - 4, '', {
     fontSize: '16px',
     fill: '#FF0000'
   });
