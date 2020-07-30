@@ -61,11 +61,13 @@ class WebRTCConnection {
     this.makingOffer = false;
     this.ignoreOffer = false;
     this.remoteId = null;
-    this.tracksToAdd = []; //[...this.allTracks];
+    this.tracksToAdd = [...this.allTracks];
     this.receivedTracks = [];
     this.pc = createMyPeerConnection(this.iceServer);
     pc = this.pc;
     const signaler = this;
+
+    // Updated from her: https://blog.mozilla.org/webrtc/perfect-negotiation-in-webrtc/
     pc.onnegotiationneeded = async () => {
       try {
         this.makingOffer = true;
@@ -105,7 +107,7 @@ class WebRTCConnection {
 // Called when a track is recieved
   onTrack = (event) => {
     this.receivedTracks.push(event.track);
-    console.log('Track event', event, 'got a total of', this.receivedTracks.length);
+    console.log('WebRTCConnection: track event', event, 'got a total of', this.receivedTracks.length);
     this.sendTracksIfPossible();
   }
 
@@ -118,7 +120,7 @@ class WebRTCConnection {
     let funclist = this.listeners[evtname] || [];
     funclist.push(func);
     this.listeners[evtname] = funclist;
-    console.log('Added listener for', evtname, ' total:', this.listeners[evtname].length);
+    console.log('WebRTCConnection:Added listener for', evtname, ' total:', this.listeners[evtname].length);
   }
 
   // Called by us when we want to send a track
@@ -137,20 +139,25 @@ class WebRTCConnection {
     return this._iceServer;
   }
 
+  get allConnected() {
+    return (this.allTracks.length == 2 && this.tracksToAdd == 0 && this.receivedTracks.length == 2);
+  }
+
   sendTracksIfPossible = () => {
 
       console.log('SendTracksIfPossible() pc', this.pc,
       'tracks to add', this.tracksToAdd.length,
       'received tracks', this.receivedTracks.length,
       'polite?', this.polite,
-    'remoteId', this.remoteId);
+      'remoteId', this.remoteId);
 
       // while((this.pc.signalingState === "connected" ||
       // this.pc.signalingState === "stable")
       //   && this.tracksToAdd.length > 0)  {
       if (this.polite && this.receivedTracks.length < 2) {
-        console.log('Not sending yet, as havnt got other tracks', this.polite, this.receivedTracks.length);
-        return;
+        //console.log('Not sending yet, as havnt got other tracks', this.polite, this.receivedTracks.length);
+        //return;
+        console.log('Not got all tracks but sending anyway');
       }
       if (this.remoteId === null || this.pc === null) {
         console.log('Cant send as no remote id');
@@ -195,6 +202,7 @@ class WebRTCConnection {
 
   onmessage = async (webrtcdata) => {
     try {
+      const pc = this.pc;
       const {description, candidate} = webrtcdata.msg;
       if (this.remoteId === null) {
         console.log(`Got WEBRTC data but no current remote socket ID. Setting to ${webrtcdata.playerId}`);
@@ -299,7 +307,6 @@ var config = {
 };
 
 var game;
-var pc;
 var webcam_stream = null;
 var screen_stream = null;
 var resizedDetections = [];
@@ -376,7 +383,7 @@ const MODEL_PATH = '/game/models'
 Promise.all([
   faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_PATH),
   faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_PATH),
-  faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_PATH),
+  //faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_PATH),
   faceapi.nets.faceExpressionNet.loadFromUri(MODEL_PATH)
 ]).then(startGame);
 
@@ -415,9 +422,7 @@ function create() {
   // TODO: Fix race condition here. running io() will fire a connection event
   // on teh server, which will triger a bunch of messages to come back to us,
   // but we haven't yet set our own listeners
-  this.socket = io(this.socketNamespace);
-  this.playerId = this.socket.id;
-  this.webrtcConnection = new WebRTCConnection(this.socket);
+
 
   this.blueScoreText = this.add.text(16, 16, '', {
     fontSize: '32px',
@@ -447,7 +452,12 @@ function create() {
   self.cutout_video = document.createElement('canvas');
   self.cutout_video.height = 128;
   self.cutout_video.width = 128;
+
+  this.socket = io(this.socketNamespace);
+  this.playerId = this.socket.id;
+  this.webrtcConnection = new WebRTCConnection(this.socket);
   webcamVideo(self, self.cutout_video);
+  sendAudio(self);
 
   let pc = this.webrtcConnection.pc;
 
@@ -473,10 +483,6 @@ function create() {
     }
   });
 
-  sendCutout(self);
-
-  // This is the trigger to send my media back if we haven't already
-  sendAudio(self);
 
   this.webrtcConnection.addEventListener('removetrack', function(evt) {
     console.log('Removetrack called');
@@ -505,7 +511,7 @@ function create() {
 
     // We're the media mediaMaster
     self.mediaMaster = true;
-    sendMedia(self);
+    //sendMedia(self);
   });
 
   this.socket.on('disconnect', function(playerId) {
@@ -611,16 +617,6 @@ function setChatPlayer(self, player) {
   }
 }
 
-function sendMedia(self) {
-  // send video to the first player we see that isnt us
-  if (self.chatPlayer !== null && !self.mediaSent) {
-    self.mediaSent = true;
-    sendAudio(self);
-    sendCutout(self);
-  }
-
-}
-
 function update() {
   const left = this.leftKeyPressed;
   const right = this.rightKeyPressed;
@@ -697,7 +693,6 @@ function webcamVideo(self, headCanvas) {
     cutout_video = headCanvas;
 
     // Send cutout if we got a new player before we got the video to open
-    sendCutout(self);
     video.addEventListener('canplay', () => {
         // by defualt use whole scene as cutout
         last_rect = {
@@ -711,6 +706,7 @@ function webcamVideo(self, headCanvas) {
           sh:webcam_video.height};
 
         window.requestAnimationFrame(copyCutout);
+        sendCutout(self);
 
         const showOverlay = false;
         if (showOverlay) {
@@ -725,6 +721,9 @@ function webcamVideo(self, headCanvas) {
         let max_det_time = 0;
         setInterval(async () => {
           //console.time('detections');
+          if (! self.webrtcConnection.allConnected) {
+            return;
+          }
           const tstart = performance.now();
           detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceExpressions();
           const tend = performance.now();
@@ -779,9 +778,11 @@ function webcamVideo(self, headCanvas) {
               ctx.strokeRect(box.x, box.y, box.width, box.height);
             }
           }
-        }, 250)
+        }, 500)
 
-        // start copying cutout
+        // Send cutout - only happens once but we need to have done all
+        // The face detection the first timea;sldkfj
+
 
       }
 
@@ -900,6 +901,7 @@ function copyCutout() {
     //https://github.com/photonstorm/phaser/blob/v3.22.0/src/textures/CanvasTexture.js
     //cutcanvas.refresh();
   }
+
   window.requestAnimationFrame(copyCutout);
 }
 

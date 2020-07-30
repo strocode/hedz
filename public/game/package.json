@@ -10,6 +10,6 @@
   "license": "ISC",
   "dependencies": {
     "face-api.js": "^0.22.2",
-    "phaser": "^3.23.0"
+    "phaser": "^3.24.1"
   }
 }
