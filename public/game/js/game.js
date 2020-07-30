@@ -249,8 +249,8 @@ class WebRTCConnection {
   }
 }
 
-const GAME_WIDTH = 800;
-const GAME_HEIGHT = 600;
+const GAME_WIDTH = 1024;
+const GAME_HEIGHT = 768;
 const MAX_SMILE_HEIGHT = 300;
 
 var config = {
