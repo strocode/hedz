@@ -140,7 +140,8 @@ class WebRTCConnection {
   }
 
   get allConnected() {
-    return (this.allTracks.length == 2 && this.tracksToAdd == 0 && this.receivedTracks.length == 2);
+    //return (this.allTracks.length == 2 && this.tracksToAdd == 0 && this.receivedTracks.length == 2 && this.pc.signalingState === "stable");
+    return this.pc.signalingState === "stable";
   }
 
   sendTracksIfPossible = () => {
@@ -179,6 +180,7 @@ class WebRTCConnection {
     // Simple but effective
     this.polite = this.socket.id < this.remoteId;
     console.log('Setting remote socket: me', this.socket.id, 'remote', this.remoteId, ' polite?', this.polite);
+    this.sendTracksIfPossible();
   }
 
   close = () => {
@@ -721,9 +723,9 @@ function webcamVideo(self, headCanvas) {
         let max_det_time = 0;
         setInterval(async () => {
           //console.time('detections');
-          //if (! self.webrtcConnection.allConnected) {
-          return;
-          //}
+          if (! self.webrtcConnection.allConnected) {
+            return;
+          }
           const tstart = performance.now();
           detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceExpressions();
           const tend = performance.now();
