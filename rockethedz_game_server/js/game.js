@@ -129,6 +129,9 @@ function create() {
 
       // tell outside world wehave no more players
       if (Object.keys(self.players).length == 0) {
+          //socket.off('disconnect');
+          //socket.off('connect');
+          socket.disconnect();
           window.onFinished();
       }
     });

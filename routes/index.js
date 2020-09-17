@@ -122,11 +122,17 @@ function setupAuthoritativePhaser(gameId, io) {
       dom.window.getIceServer = getIceServer;
       dom.window.onFinished = () => {
         console.log('Game', gameId, 'finished');
+        const g = games[gameId];
+        g.game.destroy(true, true);
         dom.window.close();
+        delete g.dom;
+        delete g.game;
+        delete io.nsps[socketNamespace];
         delete games[gameId];
       }
 
       dom.window.gameLoaded = (game) => {
+
         let gameobj = {
           dom: dom,
           game: game
