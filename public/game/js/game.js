@@ -936,6 +936,7 @@ function sendCutout(self) {
     self.cutoutSent= true;
 
     console.log('Adding cutout video track to peer connection');
+    var ctx = cutout_video.getContext('2d');
     var stream = cutout_video.captureStream(30);
     var track = stream.getVideoTracks()[0];
     //pc.addTrack(track, stream);
